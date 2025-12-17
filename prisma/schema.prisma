@@ -1,0 +1,344 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model UserGroup {
+  id                Int                @id @default(autoincrement())
+  name              String             @unique @db.VarChar(80)
+  description       String?            @db.Text
+  createdAt         DateTime           @map("created_at") @default(now()) @db.Timestamp(6)
+  updatedAt         DateTime           @map("updated_at") @default(now()) @db.Timestamp(6)
+  users             User[]
+  groupPermissions  GroupPermission[]
+
+  @@map("user_groups")
+}
+
+model User {
+  id             Int        @id @default(autoincrement())
+  groupId        Int        @map("group_id")
+  name           String     @db.VarChar(150)
+  email          String     @unique @db.VarChar(180)
+  passwordHash   String     @map("password_hash") @db.VarChar(255)
+  avatarUrl      String?    @map("avatar_url") @db.VarChar(255)
+  cpf            String     @unique @db.VarChar(11)
+  phone          String?    @db.VarChar(30)
+  isActive       Boolean    @map("is_active") @default(true)
+  lastLoginAt    DateTime?  @map("last_login_at") @db.Timestamp(6)
+  createdAt      DateTime   @map("created_at") @default(now()) @db.Timestamp(6)
+  updatedAt      DateTime   @map("updated_at") @default(now()) @db.Timestamp(6)
+  group          UserGroup  @relation(fields: [groupId], references: [id], onDelete: Restrict, map: "fk_users_group")
+  teacher        Teacher?
+  termGrades     TermGrade[] @relation("TermGradesClosedBy")
+
+  @@index([groupId], map: "ix_users_group_id")
+  @@map("users")
+}
+
+model Permission {
+  id               Int                @id @default(autoincrement())
+  code             String             @unique @db.VarChar(120)
+  description      String?            @db.Text
+  groupPermissions GroupPermission[]
+
+  @@map("permissions")
+}
+
+model GroupPermission {
+  groupId      Int         @map("group_id")
+  permissionId Int         @map("permission_id")
+  group        UserGroup   @relation(fields: [groupId], references: [id], onDelete: Cascade, map: "fk_gp_group")
+  permission   Permission  @relation(fields: [permissionId], references: [id], onDelete: Cascade, map: "fk_gp_permission")
+
+  @@id([groupId, permissionId])
+  @@index([permissionId], map: "ix_group_permissions_permission_id")
+  @@map("group_permissions")
+}
+
+model School {
+  id        Int      @id @default(autoincrement())
+  name      String   @db.VarChar(150)
+  cnpj      String?  @db.VarChar(18)
+  ie        String?  @db.VarChar(50)
+  address   String?  @db.Text
+  city      String?  @db.VarChar(100)
+  state     String?  @db.VarChar(10)
+  zip       String?  @db.VarChar(20)
+  phone     String?  @db.VarChar(30)
+  email     String?  @db.VarChar(180)
+  website   String?  @db.VarChar(200)
+  logoUrl   String?  @map("logo_url") @db.VarChar(255)
+  createdAt DateTime @map("created_at") @default(now()) @db.Timestamp(6)
+  updatedAt DateTime @map("updated_at") @default(now()) @db.Timestamp(6)
+
+  @@map("school")
+}
+
+model Student {
+  id                  Int                 @id @default(autoincrement())
+  registrationNumber  String              @unique @map("registration_number") @db.VarChar(30) @default(dbgenerated("lpad(nextval('student_registration_seq'::regclass)::text, 8, '0')"))
+  name                String              @db.VarChar(150)
+  birthDate           DateTime?           @map("birth_date") @db.Date
+  cpf                 String              @unique @db.VarChar(11)
+  email               String?             @db.VarChar(180)
+  phone               String?             @db.VarChar(30)
+  isActive            Boolean             @map("is_active") @default(true)
+  createdAt           DateTime            @map("created_at") @default(now()) @db.Timestamp(6)
+  updatedAt           DateTime            @map("updated_at") @default(now()) @db.Timestamp(6)
+  guardians           StudentGuardian[]
+  enrollments         Enrollment[]
+
+  @@map("students")
+}
+
+model Guardian {
+  id             Int                 @id @default(autoincrement())
+  name           String              @db.VarChar(150)
+  cpf            String              @unique @db.VarChar(11)
+  email          String?             @db.VarChar(180)
+  phone          String?             @db.VarChar(30)
+  createdAt      DateTime            @map("created_at") @default(now()) @db.Timestamp(6)
+  updatedAt      DateTime            @map("updated_at") @default(now()) @db.Timestamp(6)
+  studentLinks   StudentGuardian[]
+
+  @@map("guardians")
+}
+
+model StudentGuardian {
+  studentId        Int       @map("student_id")
+  guardianId       Int       @map("guardian_id")
+  relationship     String    @db.VarChar(40)
+  isPrimary        Boolean   @map("is_primary") @default(false)
+  isFinancial      Boolean   @map("is_financial") @default(false)
+  livesWithStudent Boolean   @map("lives_with_student") @default(false)
+  notes            String?   @db.Text
+  student          Student   @relation(fields: [studentId], references: [id], onDelete: Cascade, map: "fk_sg_student")
+  guardian         Guardian  @relation(fields: [guardianId], references: [id], onDelete: Restrict, map: "fk_sg_guardian")
+
+  @@id([studentId, guardianId])
+  @@index([guardianId], map: "ix_student_guardians_guardian_id")
+  @@map("student_guardians")
+}
+
+model Teacher {
+  id                   Int                   @id @default(autoincrement())
+  userId               Int                   @unique @map("user_id")
+  isActive             Boolean               @map("is_active") @default(true)
+  createdAt            DateTime              @map("created_at") @default(now()) @db.Timestamp(6)
+  updatedAt            DateTime              @map("updated_at") @default(now()) @db.Timestamp(6)
+  user                 User                  @relation(fields: [userId], references: [id], onDelete: Restrict, map: "fk_teachers_user")
+  teacherAssignments   TeacherAssignment[]
+  attendanceSessions   AttendanceSession[]   @relation("AttendanceSessionTeacher")
+  assessments          Assessment[]          @relation("AssessmentTeacher")
+
+  @@map("teachers")
+}
+
+model Subject {
+  id          Int             @id @default(autoincrement())
+  name        String          @db.VarChar(120)
+  code        String?         @unique @db.VarChar(30)
+  createdAt   DateTime        @map("created_at") @default(now()) @db.Timestamp(6)
+  updatedAt   DateTime        @map("updated_at") @default(now()) @db.Timestamp(6)
+  classSubjects ClassSubject[]
+
+  @@index([name], map: "ix_subjects_name")
+  @@map("subjects")
+}
+
+model ClassGroup {
+  id          Int             @id @default(autoincrement())
+  name        String          @db.VarChar(60)
+  schoolYear  Int             @map("school_year")
+  shift       Int?            @db.SmallInt
+  isActive    Boolean         @map("is_active") @default(true)
+  createdAt   DateTime        @map("created_at") @default(now()) @db.Timestamp(6)
+  updatedAt   DateTime        @map("updated_at") @default(now()) @db.Timestamp(6)
+  classSubjects ClassSubject[]
+  enrollments Enrollment[]
+
+  @@unique([schoolYear, name], map: "ux_class_groups")
+  @@index([schoolYear], map: "ix_class_groups_year")
+  @@map("class_groups")
+}
+
+model Enrollment {
+  id            Int                  @id @default(autoincrement())
+  studentId     Int                  @map("student_id")
+  classGroupId  Int                  @map("class_group_id")
+  status        String               @db.VarChar(20) @default("active")
+  enrolledAt    DateTime             @map("enrolled_at") @default(dbgenerated("current_date")) @db.Date
+  leftAt        DateTime?            @map("left_at") @db.Date
+  createdAt     DateTime             @map("created_at") @default(now()) @db.Timestamp(6)
+  updatedAt     DateTime             @map("updated_at") @default(now()) @db.Timestamp(6)
+  student       Student              @relation(fields: [studentId], references: [id], onDelete: Restrict, map: "fk_enr_student")
+  classGroup    ClassGroup           @relation(fields: [classGroupId], references: [id], onDelete: Restrict, map: "fk_enr_class")
+  attendance    AttendanceRecord[]
+  assessmentScores AssessmentScore[]
+  termGrades    TermGrade[]
+
+  @@index([studentId], map: "ix_enrollments_student_id")
+  @@index([classGroupId], map: "ix_enrollments_class_group_id")
+  @@map("enrollments")
+}
+
+model ClassSubject {
+  id               Int                  @id @default(autoincrement())
+  classGroupId     Int                  @map("class_group_id")
+  subjectId        Int                  @map("subject_id")
+  workloadMinutes  Int?                 @map("workload_minutes")
+  createdAt        DateTime             @map("created_at") @default(now()) @db.Timestamp(6)
+  updatedAt        DateTime             @map("updated_at") @default(now()) @db.Timestamp(6)
+  classGroup       ClassGroup           @relation(fields: [classGroupId], references: [id], onDelete: Cascade, map: "fk_cs_class")
+  subject          Subject              @relation(fields: [subjectId], references: [id], onDelete: Restrict, map: "fk_cs_subject")
+  teacherAssignments TeacherAssignment[]
+  attendanceSessions AttendanceSession[]
+  assessments      Assessment[]
+  termGrades       TermGrade[]
+
+  @@unique([classGroupId, subjectId], map: "ux_class_subject")
+  @@index([classGroupId], map: "ix_class_subjects_class_group_id")
+  @@index([subjectId], map: "ix_class_subjects_subject_id")
+  @@map("class_subjects")
+}
+
+model TeacherAssignment {
+  id             Int            @id @default(autoincrement())
+  classSubjectId Int            @map("class_subject_id")
+  teacherId      Int            @map("teacher_id")
+  role           Int            @db.SmallInt @default(1)
+  startsAt       DateTime?      @map("starts_at") @db.Date
+  endsAt         DateTime?      @map("ends_at") @db.Date
+  createdAt      DateTime       @map("created_at") @default(now()) @db.Timestamp(6)
+  updatedAt      DateTime       @map("updated_at") @default(now()) @db.Timestamp(6)
+  classSubject   ClassSubject   @relation(fields: [classSubjectId], references: [id], onDelete: Cascade, map: "fk_ta_class_subject")
+  teacher        Teacher        @relation(fields: [teacherId], references: [id], onDelete: Restrict, map: "fk_ta_teacher")
+
+  @@index([classSubjectId], map: "ix_teacher_assignments_class_subject_id")
+  @@index([teacherId], map: "ix_teacher_assignments_teacher_id")
+  @@map("teacher_assignments")
+}
+
+model AcademicTerm {
+  id           Int                 @id @default(autoincrement())
+  schoolYear   Int                 @map("school_year")
+  name         String              @db.VarChar(40)
+  termOrder    Int                 @map("term_order") @db.SmallInt
+  startsAt     DateTime            @map("starts_at") @db.Date
+  endsAt       DateTime            @map("ends_at") @db.Date
+  createdAt    DateTime            @map("created_at") @default(now()) @db.Timestamp(6)
+  updatedAt    DateTime            @map("updated_at") @default(now()) @db.Timestamp(6)
+  attendanceSessions AttendanceSession[]
+  assessments  Assessment[]
+  termGrades   TermGrade[]
+
+  @@unique([schoolYear, termOrder], map: "ux_academic_terms")
+  @@index([schoolYear], map: "ix_academic_terms_year")
+  @@map("academic_terms")
+}
+
+model AttendanceSession {
+  id                 Int                 @id @default(autoincrement())
+  classSubjectId     Int                 @map("class_subject_id")
+  termId             Int?                @map("term_id")
+  sessionDate        DateTime            @map("session_date") @db.Date
+  lessonNumber       Int?                @map("lesson_number") @db.SmallInt
+  startsAt           DateTime?           @map("starts_at") @db.Time(6)
+  endsAt             DateTime?           @map("ends_at") @db.Time(6)
+  content            String?             @db.Text
+  launchedByTeacherId Int                @map("launched_by_teacher_id")
+  createdAt          DateTime            @map("created_at") @default(now()) @db.Timestamp(6)
+  updatedAt          DateTime            @map("updated_at") @default(now()) @db.Timestamp(6)
+  classSubject       ClassSubject        @relation(fields: [classSubjectId], references: [id], onDelete: Cascade, map: "fk_as_class_subject")
+  term               AcademicTerm?       @relation(fields: [termId], references: [id], onDelete: Restrict, map: "fk_as_term")
+  teacher            Teacher             @relation("AttendanceSessionTeacher", fields: [launchedByTeacherId], references: [id], onDelete: Restrict, map: "fk_as_teacher")
+  records            AttendanceRecord[]
+
+  @@index([classSubjectId], map: "ix_attendance_sessions_class_subject")
+  @@index([sessionDate], map: "ix_attendance_sessions_date")
+  @@map("attendance_sessions")
+}
+
+model AttendanceRecord {
+  attendanceSessionId Int                 @map("attendance_session_id")
+  enrollmentId        Int                 @map("enrollment_id")
+  status              String              @db.VarChar(12)
+  minutesLate         Int?                @map("minutes_late") @db.SmallInt
+  notes               String?             @db.Text
+  createdAt           DateTime            @map("created_at") @default(now()) @db.Timestamp(6)
+  updatedAt           DateTime            @map("updated_at") @default(now()) @db.Timestamp(6)
+  session             AttendanceSession   @relation(fields: [attendanceSessionId], references: [id], onDelete: Cascade, map: "fk_ar_session")
+  enrollment          Enrollment          @relation(fields: [enrollmentId], references: [id], onDelete: Restrict, map: "fk_ar_enrollment")
+
+  @@id([attendanceSessionId, enrollmentId])
+  @@index([enrollmentId], map: "ix_attendance_records_enrollment")
+  @@map("attendance_records")
+}
+
+model Assessment {
+  id                 Int                 @id @default(autoincrement())
+  classSubjectId     Int                 @map("class_subject_id")
+  termId             Int                 @map("term_id")
+  title              String              @db.VarChar(120)
+  assessmentType     String              @map("assessment_type") @db.VarChar(20)
+  assessmentDate     DateTime            @map("assessment_date") @db.Date
+  weight             Decimal             @db.Decimal(6, 3) @default(1)
+  maxScore           Decimal             @map("max_score") @db.Decimal(6, 2) @default(10)
+  isPublished        Boolean             @map("is_published") @default(false)
+  createdByTeacherId Int                 @map("created_by_teacher_id")
+  createdAt          DateTime            @map("created_at") @default(now()) @db.Timestamp(6)
+  updatedAt          DateTime            @map("updated_at") @default(now()) @db.Timestamp(6)
+  classSubject       ClassSubject        @relation(fields: [classSubjectId], references: [id], onDelete: Cascade, map: "fk_a_class_subject")
+  term               AcademicTerm        @relation(fields: [termId], references: [id], onDelete: Restrict, map: "fk_a_term")
+  teacher            Teacher             @relation("AssessmentTeacher", fields: [createdByTeacherId], references: [id], onDelete: Restrict, map: "fk_a_teacher")
+  scores             AssessmentScore[]
+
+  @@index([classSubjectId], map: "ix_assessments_class_subject")
+  @@index([termId], map: "ix_assessments_term")
+  @@map("assessments")
+}
+
+model AssessmentScore {
+  assessmentId Int        @map("assessment_id")
+  enrollmentId Int        @map("enrollment_id")
+  score        Decimal?   @db.Decimal(6, 2)
+  isAbsent     Boolean    @map("is_absent") @default(false)
+  isExcused    Boolean    @map("is_excused") @default(false)
+  notes        String?    @db.Text
+  createdAt    DateTime   @map("created_at") @default(now()) @db.Timestamp(6)
+  updatedAt    DateTime   @map("updated_at") @default(now()) @db.Timestamp(6)
+  assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade, map: "fk_ascore_assessment")
+  enrollment   Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Restrict, map: "fk_ascore_enrollment")
+
+  @@id([assessmentId, enrollmentId])
+  @@index([enrollmentId], map: "ix_assessment_scores_enrollment")
+  @@map("assessment_scores")
+}
+
+model TermGrade {
+  id                    Int        @id @default(autoincrement())
+  enrollmentId          Int        @map("enrollment_id")
+  classSubjectId        Int        @map("class_subject_id")
+  termId                Int        @map("term_id")
+  grade                 Decimal?   @db.Decimal(6, 2)
+  absencesCount         Int        @map("absences_count") @default(0)
+  attendancePercentage  Decimal?   @map("attendance_percentage") @db.Decimal(5, 2)
+  isClosed              Boolean    @map("is_closed") @default(false)
+  closedAt              DateTime?  @map("closed_at") @db.Timestamp(6)
+  closedByUserId        Int?       @map("closed_by_user_id")
+  createdAt             DateTime   @map("created_at") @default(now()) @db.Timestamp(6)
+  updatedAt             DateTime   @map("updated_at") @default(now()) @db.Timestamp(6)
+  enrollment            Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Restrict, map: "fk_tg_enrollment")
+  classSubject          ClassSubject @relation(fields: [classSubjectId], references: [id], onDelete: Restrict, map: "fk_tg_class_subject")
+  term                  AcademicTerm @relation(fields: [termId], references: [id], onDelete: Restrict, map: "fk_tg_term")
+  closedByUser          User?        @relation("TermGradesClosedBy", fields: [closedByUserId], references: [id], onDelete: SetNull, map: "fk_tg_closed_by_user")
+
+  @@unique([enrollmentId, classSubjectId, termId], map: "ux_term_grades")
+  @@index([termId], map: "ix_term_grades_term")
+  @@index([classSubjectId], map: "ix_term_grades_class_subject")
+  @@map("term_grades")
+}

@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gestão Escolar - Manual de Uso</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0b1220;
+      --panel: #0f172a;
+      --card: #111827;
+      --accent: #22c55e;
+      --muted: #9ca3af;
+      --text: #e5e7eb;
+      --border: #1f2937;
+    }
+    body {
+      margin: 0;
+      font-family: "Inter", system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    .shell { max-width: 1100px; margin: 0 auto; padding: 32px 20px 64px; }
+    h1, h2, h3 { margin: 0; }
+    p { color: var(--muted); line-height: 1.6; }
+    .badge { display: inline-flex; padding: 6px 10px; border-radius: 999px; border: 1px solid var(--border); background: var(--card); color: var(--muted); font-size: 12px; }
+    .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.35); }
+    .section { padding: 18px 20px; border-bottom: 1px solid var(--border); }
+    .section:last-child { border-bottom: 0; }
+    .grid { display: grid; gap: 14px; }
+    .grid.two { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
+    ul { margin: 8px 0; padding-left: 18px; color: var(--muted); }
+    code { background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 6px; padding: 2px 6px; font-size: 13px; }
+    .step { display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: start; }
+    .step-num { height: 26px; width: 26px; border-radius: 8px; background: rgba(34,197,94,0.12); color: var(--accent); display: grid; place-items: center; font-weight: 700; border: 1px solid rgba(34,197,94,0.35); margin-top: 2px; }
+    @media (max-width: 640px) { .section { padding: 16px; } }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <div class="badge">Gestão Escolar · Manual de Uso</div>
+    <h1>Como usar o sistema</h1>
+    <p>Guia rápido para acessar, navegar e operar os módulos principais.</p>
+
+    <div class="panel">
+      <div class="section">
+        <h2>Acesso e sessão</h2>
+        <ul>
+          <li>Acesse <code>/login</code> com e-mail e senha.</li>
+          <li>As permissões exibem apenas os menus/botões liberados para seu grupo.</li>
+          <li>Use o menu do usuário (avatar) para acessar Perfil e Sair.</li>
+        </ul>
+      </div>
+
+      <div class="section">
+        <h2>Fluxo recomendado</h2>
+        <div class="grid two">
+          <div class="card">
+            <h3>1) Cadastros-base (pessoas e estrutura)</h3>
+            <ul>
+              <li><strong>Responsáveis</strong>: cadastre pelo CPF (obrigatório/único) e telefone.</li>
+              <li><strong>Alunos</strong>: CPF/telefone com máscara; vincule ao menos um responsável (busca por CPF ou nome). Matrícula interna é gerada automaticamente.</li>
+              <li><strong>Turmas</strong>: nome, ano letivo e turno; mantenha ativo/inativo conforme uso.</li>
+              <li><strong>Disciplinas</strong>: nome e código opcional.</li>
+              <li><strong>Matrículas</strong>: enturme o aluno (aluno → turma) para liberar frequência/avaliações.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>2) Acadêmico (estrutura curricular)</h3>
+            <ul>
+              <li><strong>Turma x Disciplina</strong>: componentes que cada turma cursa.</li>
+              <li><strong>Prof. x Componente</strong>: aloque professores nos componentes da turma (usa usuários do grupo Professores).</li>
+              <li><strong>Períodos letivos</strong>: cadastre bimestres/trimestres/semestres com datas.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>3) Operação (dia a dia)</h3>
+            <ul>
+              <li><strong>Frequência</strong>: crie sessões por componente/período e professor; depois registre presenças em <code>attendance_records</code>.</li>
+              <li><strong>Avaliações</strong>: cadastre provas/trabalhos e lance notas em <code>assessment_scores</code>; publique quando finalizar.</li>
+              <li><strong>Fechamento</strong>: consolide notas/faltas por período em <code>term_grades</code> ou use o botão de recalcular.</li>
+            </ul>
+          </div>
+        </div>
+        <p style="color: var(--muted); margin-top: 10px;">Siga a ordem 1 → 2 → 3 para evitar erros de vínculo/permissão e ter dados completos antes das rotinas diárias.</p>
+      </div>
+
+      <div class="section">
+        <h2>Cadastro de Alunos</h2>
+        <ul>
+          <li>Matrícula interna gerada automaticamente.</li>
+          <li>CPF/telefone com máscara; responsável é obrigatório (busca por CPF ou nome).</li>
+          <li>Use o botão de adicionar responsável para vincular.</li>
+        </ul>
+      </div>
+
+      <div class="section">
+        <h2>Responsáveis</h2>
+        <ul>
+          <li>CPF único e obrigatório.</li>
+          <li>Telefone com máscara brasileira.</li>
+          <li>Na listagem, visualize alunos vinculados e gere relatório.</li>
+        </ul>
+      </div>
+
+      <div class="section">
+        <h2>Professores</h2>
+        <ul>
+          <li>Selecione um usuário do grupo Professores; não é possível trocar depois.</li>
+          <li>Status ativo/inativo controla disponibilidade para alocações.</li>
+        </ul>
+      </div>
+
+      <div class="section">
+        <h2>Acadêmico</h2>
+        <ul>
+          <li><strong>Turma x Disciplina</strong>: defina componentes curriculares por turma.</li>
+          <li><strong>Prof. x Componente</strong>: aloque professores em componentes.</li>
+          <li><strong>Períodos</strong>: cadastre bimestres/trimestres/semestres.</li>
+        </ul>
+      </div>
+
+      <div class="section">
+        <h2>Frequência</h2>
+        <ul>
+          <li>Crie sessões por componente/período e professor responsável.</li>
+          <li>Horários e conteúdo são opcionais; presenças registradas em <code>attendance_records</code>.</li>
+        </ul>
+      </div>
+
+      <div class="section">
+        <h2>Avaliações e Notas</h2>
+        <ul>
+          <li>Defina avaliações por componente/período/professor.</li>
+          <li>Lance notas em <code>assessment_scores</code>; publique quando estiver finalizado.</li>
+          <li>Fechamento consolida em <code>term_grades</code> (há botão de recalcular).</li>
+        </ul>
+      </div>
+
+      <div class="section">
+        <h2>Configurações</h2>
+        <ul>
+          <li><strong>Escola</strong>: nome, logo, contatos; logo aparece na sidebar/header.</li>
+          <li><strong>Popular/Resetar base</strong>: dados de exemplo e recriação do admin (demo).</li>
+        </ul>
+      </div>
+
+      <div class="section">
+        <h2>RBAC (Permissões)</h2>
+        <ul>
+          <li>Permissões em <code>permissions</code>, grupos em <code>user_groups</code>.</li>
+          <li>Admin: tudo; Secretaria: cadastros principais; Professor: leituras + frequência/avaliações.</li>
+          <li>Botões/links só aparecem para quem tem <code>.write</code>/<code>.read</code> e o servidor também bloqueia.</li>
+        </ul>
+      </div>
+
+      <div class="section">
+        <h2>Dúvidas comuns</h2>
+        <ul>
+          <li><strong>Login falha?</strong> Verifique se o usuário está ativo e a senha é a do SEED ou atual.</li>
+          <li><strong>Sem acesso a um menu?</strong> O grupo não possui a permissão <code>.read</code> correspondente.</li>
+          <li><strong>Erro de FK ao excluir?</strong> O registro tem vínculos (ex.: professor em alocações/frequência/avaliações).</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

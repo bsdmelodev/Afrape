@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gestão Escolar - Documentação</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #111827;
+      --card: #1f2937;
+      --accent: #22c55e;
+      --muted: #9ca3af;
+      --text: #e5e7eb;
+      --border: #1f2937;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Inter", system-ui, -apple-system, sans-serif;
+      background: radial-gradient(circle at 20% 20%, rgba(34,197,94,0.08), transparent 35%),
+                  radial-gradient(circle at 80% 10%, rgba(59,130,246,0.08), transparent 35%),
+                  var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    .shell {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 32px 20px 64px;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+    .badge {
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--card);
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+      overflow: hidden;
+    }
+    .section {
+      padding: 18px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    .section:last-child { border-bottom: 0; }
+    h1, h2, h3 { margin: 0; }
+    h1 { font-size: 26px; }
+    h2 { font-size: 18px; margin-bottom: 10px; }
+    p { margin: 8px 0; color: var(--muted); }
+    ul { padding-left: 18px; margin: 8px 0; color: var(--muted); }
+    code {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 2px 6px;
+      font-size: 13px;
+    }
+    .grid { display: grid; gap: 14px; }
+    .grid.two { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+    }
+    .step {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 10px;
+      align-items: start;
+    }
+    .step-num {
+      height: 26px;
+      width: 26px;
+      border-radius: 8px;
+      background: rgba(34,197,94,0.12);
+      color: var(--accent);
+      display: grid;
+      place-items: center;
+      font-weight: 700;
+      border: 1px solid rgba(34,197,94,0.35);
+      margin-top: 2px;
+    }
+    .footer { margin-top: 22px; color: var(--muted); font-size: 13px; text-align: center; }
+    @media (max-width: 640px) {
+      h1 { font-size: 22px; }
+      .section { padding: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header>
+      <div>
+        <div class="badge">Gestão Escolar · Next.js + Prisma</div>
+        <h1>Documentação Rápida</h1>
+        <p>Painel administrativo com autenticação JWT (cookie httpOnly), RBAC via permissões/grupos e CRUDs completos.</p>
+      </div>
+    </header>
+
+    <div class="panel">
+      <div class="section">
+        <h2>Pré-requisitos</h2>
+        <ul>
+          <li>Node 18+ e npm</li>
+          <li>PostgreSQL acessível (ex.: Neon)</li>
+          <li>Variáveis em <code>.env.local</code></li>
+        </ul>
+      </div>
+
+      <div class="section">
+        <h2>Variáveis de Ambiente</h2>
+        <p>Crie <code>.env.local</code> a partir de <code>.env.example</code>:</p>
+        <ul>
+          <li><code>DATABASE_URL</code>: string de conexão (pooler Neon)</li>
+          <li><code>AUTH_SECRET</code>: chave longa para assinar JWT</li>
+          <li><code>SEED_ADMIN_EMAIL</code>, <code>SEED_ADMIN_PASSWORD</code>, <code>SEED_ADMIN_NAME</code></li>
+          <li><code>DIRECT_URL</code> (opcional, sem pooler)</li>
+        </ul>
+      </div>
+
+      <div class="section">
+        <h2>Instalação / Dev</h2>
+        <div class="grid">
+          <div class="step"><div class="step-num">1</div><div><code>npm install</code></div></div>
+          <div class="step"><div class="step-num">2</div><div>Reset (opcional):<br><code>npx prisma db execute --stdin &lt;&lt;'SQL'
+DO $$ DECLARE r RECORD; BEGIN FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'public') LOOP EXECUTE 'DROP TABLE IF EXISTS public.' || quote_ident(r.tablename) || ' CASCADE'; END LOOP; END $$; 
+SQL</code></div></div>
+          <div class="step"><div class="step-num">3</div><div>Aplicar schema: <code>npx prisma db execute --file prisma/sql/init.sql</code></div></div>
+          <div class="step"><div class="step-num">4</div><div>Gerar client: <code>npx prisma generate</code></div></div>
+          <div class="step"><div class="step-num">5</div><div>Seed (grupos/permissions/admin): <code>node prisma/seed.ts</code></div></div>
+          <div class="step"><div class="step-num">6</div><div>Dev server: <code>npm run dev</code></div></div>
+        </div>
+        <p>Login padrão (seed): admin e senha definidos em <code>SEED_ADMIN_*</code>.</p>
+      </div>
+
+      <div class="section">
+        <h2>Build / Produção</h2>
+        <ul>
+          <li>Aplicar SQL canônico: <code>prisma/sql/init.sql</code></li>
+          <li><code>npx prisma generate</code></li>
+          <li>Rodar seed se precisar criar permissões/grupos/admin</li>
+          <li><code>npm run build</code> e <code>npm run start</code></li>
+          <li>Garantir escrita em <code>public/uploads</code> ou configurar storage nas rotas de upload</li>
+        </ul>
+      </div>
+
+      <div class="section">
+        <h2>Rotas Principais</h2>
+        <div class="grid two">
+          <div class="card">
+            <h3>Autenticação</h3>
+            <p><code>/login</code> · sessão JWT em cookie httpOnly</p>
+          </div>
+          <div class="card">
+            <h3>Dashboard</h3>
+            <p><code>/dashboard</code></p>
+          </div>
+          <div class="card">
+            <h3>Cadastros</h3>
+            <p>Alunos, Responsáveis, Turmas, Disciplinas, Matrículas</p>
+          </div>
+          <div class="card">
+            <h3>Acadêmico</h3>
+            <p>Turma x Disciplina, Prof. x Componente, Períodos, Frequência, Avaliações, Notas, Fechamento</p>
+          </div>
+          <div class="card">
+            <h3>Segurança</h3>
+            <p>Usuários, Grupos, Permissões (RBAC aplicado em UI e servidor)</p>
+          </div>
+          <div class="card">
+            <h3>Configurações</h3>
+            <p>Escola (logo/nome/contatos) e popular/resetar base (demo)</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>RBAC</h2>
+        <ul>
+          <li>Permissões em <code>permissions</code>, grupos em <code>user_groups</code>, vínculos em <code>group_permissions</code></li>
+          <li>Admin: todas; Secretaria: cadastros principais; Professor: leituras + frequência/avaliações</li>
+          <li>Enforcement: server actions/rotas e visibilidade de menu/botões</li>
+        </ul>
+      </div>
+
+      <div class="section">
+        <h2>Uploads</h2>
+        <ul>
+          <li>Avatar: <code>/api/upload/avatar</code> (padrão em <code>public/uploads</code>)</li>
+          <li>Logo: <code>/api/upload/logo</code></li>
+          <li>Tipos: jpeg/png/webp/gif, até 5MB</li>
+        </ul>
+      </div>
+
+      <div class="section">
+        <h2>Saúde</h2>
+        <p><code>/api/health</code> executa <code>SELECT 1</code> via Prisma.</p>
+      </div>
+    </div>
+
+    <div class="footer">SQL canônico: prisma/sql/init.sql · Prisma Client gerado sem migrations.</div>
+  </div>
+</body>
+</html>

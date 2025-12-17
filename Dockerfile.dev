@@ -1,0 +1,19 @@
+# Dockerfile para desenvolvimento (hot reload)
+FROM node:20-alpine
+WORKDIR /app
+
+# Dependências
+COPY package.json package-lock.json ./
+
+# Instala dependências (node_modules) no container e sem rodar scripts (para evitar build desnecessário)
+# Mesma coisa que "npm install" porém roda no container e não aparece na pasta local
+RUN npm ci --ignore-scripts
+
+# Copia o Código
+COPY . .
+
+ENV NODE_ENV=development
+EXPOSE 3000
+
+# Next.js dev server (usa código montado pelo docker-compose para hot reload)
+CMD ["npm", "run", "dev"]
