@@ -14,12 +14,33 @@ const groupSchema = z.object({
 
 export type GroupInput = z.infer<typeof groupSchema>;
 
+const restrictedPermissionCodes = ["settings.read", "settings.write"];
+
+async function filterRestrictedPermissions(permissionIds: number[], isMaster: boolean) {
+  if (isMaster || permissionIds.length === 0) return permissionIds;
+  const restricted = await prisma.permission.findMany({
+    where: { code: { in: restrictedPermissionCodes } },
+    select: { id: true },
+  });
+  const restrictedIds = new Set(restricted.map((p) => p.id));
+  return permissionIds.filter((id) => !restrictedIds.has(id));
+}
+
+function isMasterGroupName(name: string) {
+  return name.trim().toLowerCase() === "master";
+}
+
 export async function createGroup(data: GroupInput) {
-  await requirePermission("groups.write");
+  const user = await requirePermission("groups.write");
+  const isMaster = user.group.name === "Master";
   const parsed = groupSchema.safeParse(data);
   if (!parsed.success) {
     return { error: parseZodError(parsed.error) };
   }
+  if (!isMaster && isMasterGroupName(parsed.data.name)) {
+    return { error: "Apenas usuários Master podem criar o grupo Master." };
+  }
+  const permissionIds = await filterRestrictedPermissions(parsed.data.permissionIds, isMaster);
 
   try {
     await prisma.userGroup.create({
@@ -28,7 +49,7 @@ export async function createGroup(data: GroupInput) {
         description: parsed.data.description?.trim() || null,
         groupPermissions: {
           createMany: {
-            data: parsed.data.permissionIds.map((permissionId) => ({
+            data: permissionIds.map((permissionId) => ({
               permissionId,
             })),
           },
@@ -47,13 +68,25 @@ export async function createGroup(data: GroupInput) {
 }
 
 export async function updateGroup(id: number, data: GroupInput) {
-  await requirePermission("groups.write");
+  const user = await requirePermission("groups.write");
+  const isMaster = user.group.name === "Master";
   const parsed = groupSchema.safeParse(data);
   if (!parsed.success) {
     return { error: parseZodError(parsed.error) };
   }
+  if (!isMaster && isMasterGroupName(parsed.data.name)) {
+    return { error: "Apenas usuários Master podem renomear para Master." };
+  }
 
   try {
+    const existing = await prisma.userGroup.findUnique({ where: { id } });
+    if (!existing) {
+      return { error: "Grupo não encontrado." };
+    }
+    if (existing.name === "Master" && !isMaster) {
+      return { error: "Apenas usuários Master podem alterar o grupo Master." };
+    }
+    const permissionIds = await filterRestrictedPermissions(parsed.data.permissionIds, isMaster);
     await prisma.$transaction([
       prisma.groupPermission.deleteMany({ where: { groupId: id } }),
       prisma.userGroup.update({
@@ -63,7 +96,7 @@ export async function updateGroup(id: number, data: GroupInput) {
           description: parsed.data.description?.trim() || null,
           groupPermissions: {
             createMany: {
-              data: parsed.data.permissionIds.map((permissionId) => ({
+              data: permissionIds.map((permissionId) => ({
                 permissionId,
               })),
             },
@@ -83,8 +116,16 @@ export async function updateGroup(id: number, data: GroupInput) {
 }
 
 export async function deleteGroup(id: number) {
-  await requirePermission("groups.write");
+  const user = await requirePermission("groups.write");
+  const isMaster = user.group.name === "Master";
   try {
+    const existing = await prisma.userGroup.findUnique({ where: { id } });
+    if (!existing) {
+      return { error: "Grupo não encontrado." };
+    }
+    if (existing.name === "Master" && !isMaster) {
+      return { error: "Apenas usuários Master podem excluir o grupo Master." };
+    }
     await prisma.userGroup.delete({ where: { id } });
     revalidatePath("/groups");
     return { success: true };

@@ -56,12 +56,20 @@ const permissionDefinitions = [
 ];
 
 const permissionCodes = permissionDefinitions.map((p) => p.code);
+const adminPermissions = permissionCodes.filter(
+  (code) => code !== "settings.read" && code !== "settings.write"
+);
 
 const groups = [
   {
-    name: "Admin",
-    description: "Acesso completo ao sistema",
+    name: "Master",
+    description: "Acesso total ao sistema",
     permissions: permissionCodes,
+  },
+  {
+    name: "Admin",
+    description: "Acesso completo (exceto Configurações)",
+    permissions: adminPermissions,
   },
   {
     name: "Secretaria",
@@ -98,6 +106,9 @@ async function main() {
   const adminEmail = process.env.SEED_ADMIN_EMAIL ?? "admin@escola.local";
   const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? "Admin@123456";
   const adminName = process.env.SEED_ADMIN_NAME ?? "Administrador";
+  const masterEmail = "bruno@rocketup.com.br";
+  const masterPassword = "123456";
+  const masterName = "Bruno Master";
 
   await prisma.school.upsert({
     where: { id: 1 },
@@ -144,6 +155,8 @@ async function main() {
 
   const adminGroup = await prisma.userGroup.findUniqueOrThrow({ where: { name: "Admin" } });
   const passwordHash = await bcrypt.hash(adminPassword, 10);
+  const masterGroup = await prisma.userGroup.findUniqueOrThrow({ where: { name: "Master" } });
+  const masterHash = await bcrypt.hash(masterPassword, 10);
 
   await prisma.user.upsert({
     where: { email: adminEmail },
@@ -164,7 +177,31 @@ async function main() {
     },
   });
 
-  console.log("Seed concluído. Admin:", adminEmail, "(trocar a senha futuramente)");
+  await prisma.user.upsert({
+    where: { email: masterEmail },
+    update: {
+      name: masterName,
+      groupId: masterGroup.id,
+      cpf: "88888888888",
+      passwordHash: masterHash,
+      isActive: true,
+    },
+    create: {
+      email: masterEmail,
+      name: masterName,
+      groupId: masterGroup.id,
+      cpf: "88888888888",
+      passwordHash: masterHash,
+      isActive: true,
+    },
+  });
+
+  console.log(
+    "Seed concluído. Admin:",
+    adminEmail,
+    "(trocar a senha futuramente). Master:",
+    masterEmail
+  );
 }
 
 main()

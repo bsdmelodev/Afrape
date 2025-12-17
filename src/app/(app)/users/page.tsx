@@ -7,6 +7,7 @@ import { formatDate } from "@/lib/formatters";
 import { formatPhone, formatCpf } from "@/lib/utils";
 import type { GroupOption, UserRow } from "./types";
 import { UserTable } from "./components/user-table";
+import type { Prisma } from "@prisma/client";
 
 export default async function UsersPage({
   searchParams,
@@ -15,6 +16,7 @@ export default async function UsersPage({
 }) {
   const user = await requirePermission("users.read");
   const canWrite = hasPermission(user, "users.write");
+  const isMaster = user.group.name === "Master";
 
   const resolvedSearch = await searchParams;
   const page = Number(resolvedSearch?.page) > 0 ? Number(resolvedSearch?.page) : 1;
@@ -22,7 +24,7 @@ export default async function UsersPage({
   const perPage = 10;
   const skip = (page - 1) * perPage;
 
-  const where =
+  const baseWhere: Prisma.UserWhereInput =
     q.length > 0
       ? {
           OR: [
@@ -33,6 +35,12 @@ export default async function UsersPage({
           ],
         }
       : {};
+
+  const where: Prisma.UserWhereInput = isMaster
+    ? baseWhere
+    : Object.keys(baseWhere).length
+      ? { AND: [baseWhere, { group: { name: { not: "Master" } } }] }
+      : { group: { name: { not: "Master" } } };
 
   const [users, total, groups] = await Promise.all([
     prisma.user.findMany({
@@ -60,7 +68,9 @@ export default async function UsersPage({
     lastLoginAt: formatDate(u.lastLoginAt),
   }));
 
-  const groupOptions: GroupOption[] = groups.map((g) => ({ id: g.id, name: g.name }));
+  const groupOptions: GroupOption[] = groups
+    .filter((g) => isMaster || g.name !== "Master")
+    .map((g) => ({ id: g.id, name: g.name }));
 
   return (
     <div className="space-y-6">

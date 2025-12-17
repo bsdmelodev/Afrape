@@ -99,11 +99,20 @@ const permissionDefinitions = [
   { code: "settings.write", description: "Executar ações administrativas em configurações" },
 ];
 
+const adminPermissions = permissionDefinitions
+  .map((p) => p.code)
+  .filter((code) => code !== "settings.read" && code !== "settings.write");
+
 const seedGroups = [
   {
-    name: "Admin",
-    description: "Acesso completo ao sistema",
+    name: "Master",
+    description: "Acesso total ao sistema",
     permissions: permissionDefinitions.map((p) => p.code),
+  },
+  {
+    name: "Admin",
+    description: "Acesso completo (exceto Configurações)",
+    permissions: adminPermissions,
   },
   {
     name: "Secretaria",
@@ -616,11 +625,14 @@ export async function generateSampleProfessors() {
 }
 
 export async function resetDatabase() {
-  await requirePermission("users.write");
+  await requirePermission("settings.write");
 
   const adminEmail = process.env.SEED_ADMIN_EMAIL ?? "admin@escola.local";
   const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? "Admin@123456";
   const adminName = process.env.SEED_ADMIN_NAME ?? "Administrador";
+  const masterEmail = "bruno@rocketup.com.br";
+  const masterPassword = "123456";
+  const masterName = "Bruno Master";
 
   const tableExists = async (table: string) => {
     try {
@@ -708,6 +720,8 @@ export async function resetDatabase() {
   const adminGroup = await prisma.userGroup.findUniqueOrThrow({ where: { name: "Admin" } });
   const passwordHash = await hashPassword(adminPassword);
   const adminCpf = (process.env.SEED_ADMIN_CPF || "00000000000").replace(/\D/g, "").padEnd(11, "0");
+  const masterGroup = await prisma.userGroup.findUniqueOrThrow({ where: { name: "Master" } });
+  const masterHash = await hashPassword(masterPassword);
 
   await prisma.user.upsert({
     where: { email: adminEmail },
@@ -724,6 +738,25 @@ export async function resetDatabase() {
       groupId: adminGroup.id,
       passwordHash,
       cpf: adminCpf,
+      isActive: true,
+    },
+  });
+
+  await prisma.user.upsert({
+    where: { email: masterEmail },
+    update: {
+      name: masterName,
+      groupId: masterGroup.id,
+      passwordHash: masterHash,
+      cpf: "88888888888",
+      isActive: true,
+    },
+    create: {
+      email: masterEmail,
+      name: masterName,
+      groupId: masterGroup.id,
+      passwordHash: masterHash,
+      cpf: "88888888888",
       isActive: true,
     },
   });

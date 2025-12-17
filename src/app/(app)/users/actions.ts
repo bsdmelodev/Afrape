@@ -36,8 +36,17 @@ const updateSchema = baseSchema.extend({
 export type CreateUserInput = z.infer<typeof createSchema>;
 export type UpdateUserInput = z.infer<typeof updateSchema>;
 
+async function getMasterGroupId() {
+  const master = await prisma.userGroup.findUnique({
+    where: { name: "Master" },
+    select: { id: true },
+  });
+  return master?.id ?? null;
+}
+
 export async function createUser(data: CreateUserInput) {
-  await requirePermission("users.write");
+  const currentUser = await requirePermission("users.write");
+  const isMaster = currentUser.group.name === "Master";
   const parsed = createSchema.safeParse(data);
   if (!parsed.success) {
     return { error: parseZodError(parsed.error) };
@@ -47,6 +56,10 @@ export async function createUser(data: CreateUserInput) {
   const passwordHash = await hashPassword(password);
 
   try {
+    const masterGroupId = await getMasterGroupId();
+    if (!isMaster && masterGroupId && rest.groupId === masterGroupId) {
+      return { error: "Apenas usuários Master podem atribuir o grupo Master." };
+    }
     await prisma.user.create({
       data: {
         ...rest,
@@ -67,7 +80,8 @@ export async function createUser(data: CreateUserInput) {
 }
 
 export async function updateUser(id: number, data: UpdateUserInput) {
-  await requirePermission("users.write");
+  const currentUser = await requirePermission("users.write");
+  const isMaster = currentUser.group.name === "Master";
   const parsed = updateSchema.safeParse(data);
   if (!parsed.success) {
     return { error: parseZodError(parsed.error) };
@@ -82,6 +96,20 @@ export async function updateUser(id: number, data: UpdateUserInput) {
   }
 
   try {
+    if (!isMaster) {
+      const existing = await prisma.user.findUnique({
+        where: { id },
+        select: { group: { select: { name: true } } },
+      });
+      if (!existing) return { error: "Usuário não encontrado." };
+      if (existing.group.name === "Master") {
+        return { error: "Apenas usuários Master podem alterar usuários Master." };
+      }
+      const masterGroupId = await getMasterGroupId();
+      if (masterGroupId && rest.groupId === masterGroupId) {
+        return { error: "Apenas usuários Master podem atribuir o grupo Master." };
+      }
+    }
     await prisma.user.update({
       where: { id },
       data: updateData,
@@ -98,8 +126,19 @@ export async function updateUser(id: number, data: UpdateUserInput) {
 }
 
 export async function deleteUser(id: number) {
-  await requirePermission("users.write");
+  const currentUser = await requirePermission("users.write");
+  const isMaster = currentUser.group.name === "Master";
   try {
+    if (!isMaster) {
+      const existing = await prisma.user.findUnique({
+        where: { id },
+        select: { group: { select: { name: true } } },
+      });
+      if (!existing) return { error: "Usuário não encontrado." };
+      if (existing.group.name === "Master") {
+        return { error: "Apenas usuários Master podem excluir usuários Master." };
+      }
+    }
     await prisma.user.delete({ where: { id } });
     revalidatePath("/users");
     return { success: true };

@@ -6,6 +6,7 @@ import { hasPermission, requirePermission } from "@/lib/rbac";
 import { formatDate } from "@/lib/formatters";
 import type { GroupRow } from "./types";
 import { GroupTable } from "./components/group-table";
+import type { Prisma } from "@prisma/client";
 
 export default async function GroupsPage({
   searchParams,
@@ -14,6 +15,7 @@ export default async function GroupsPage({
 }) {
   const user = await requirePermission("groups.read");
   const canWrite = hasPermission(user, "groups.write");
+  const isMaster = user.group.name === "Master";
 
   const resolvedSearch = await searchParams;
   const page = Number(resolvedSearch?.page) > 0 ? Number(resolvedSearch?.page) : 1;
@@ -21,7 +23,7 @@ export default async function GroupsPage({
   const perPage = 10;
   const skip = (page - 1) * perPage;
 
-  const where =
+  const baseWhere: Prisma.UserGroupWhereInput =
     q.length > 0
       ? {
           OR: [
@@ -30,6 +32,12 @@ export default async function GroupsPage({
           ],
         }
       : {};
+
+  const where: Prisma.UserGroupWhereInput = isMaster
+    ? baseWhere
+    : Object.keys(baseWhere).length
+      ? { AND: [baseWhere, { name: { not: "Master" } }] }
+      : { name: { not: "Master" } };
 
   const [groups, total, permissions] = await Promise.all([
     prisma.userGroup.findMany({
@@ -47,11 +55,13 @@ export default async function GroupsPage({
     prisma.permission.findMany({ orderBy: { code: "asc" } }),
   ]);
 
-  const allPermissions = permissions.map((p) => ({
-    id: p.id,
-    code: p.code,
-    description: p.description,
-  }));
+  const allPermissions = permissions
+    .filter((p) => isMaster || !p.code.startsWith("settings."))
+    .map((p) => ({
+      id: p.id,
+      code: p.code,
+      description: p.description,
+    }));
 
   const rows: GroupRow[] = groups.map((g) => ({
     id: g.id,

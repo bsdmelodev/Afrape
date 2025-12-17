@@ -30,7 +30,8 @@ docker compose -f docker-compose.dev.yml exec app npm run seed
 docker compose -f docker-compose.dev.yml logs -f app
 docker compose -f docker-compose.dev.yml down   # parar/remover containers dev
 ```
-Admin inicial (criado pelo `init.sql`): `admin@escola.local` / `Admin@123456`.
+Admin inicial (sem acesso ao menu Configurações): `admin@escola.local` / `Admin@123456`.
+Master inicial (acesso total): `bruno@rocketup.com.br` / `123456`.
 
 ## Produção (build/start via Docker)
 ```bash

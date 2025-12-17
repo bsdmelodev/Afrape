@@ -488,16 +488,25 @@ insert into permissions (code, description) values
 on conflict (code) do update set description = excluded.description;
 
 insert into user_groups (name, description) values
+  ('Master', 'Acesso total ao sistema'),
   ('Admin', 'Acesso completo ao sistema'),
   ('Secretaria', 'Gestão acadêmica e de matrículas'),
   ('Professor', 'Lançamento de frequência e avaliações')
 on conflict (name) do update set description = excluded.description;
 
--- Admin recebe todas as permissões
+-- Master recebe todas as permissões
 insert into group_permissions (group_id, permission_id)
 select g.id, p.id
 from user_groups g
 cross join permissions p
+where g.name = 'Master'
+on conflict do nothing;
+
+-- Admin recebe todas as permissões exceto Configurações
+insert into group_permissions (group_id, permission_id)
+select g.id, p.id
+from user_groups g
+join permissions p on p.code not in ('settings.read', 'settings.write')
 where g.name = 'Admin'
 on conflict do nothing;
 
@@ -530,6 +539,13 @@ insert into users (group_id, name, email, password_hash, is_active, cpf)
 select grp.id, 'Administrador', 'admin@escola.local', '$2b$10$WKfjgQbkHq4KaKJkvsrYx.0IkIx2FFd8KIpECk4AiNiY3C3Vo4SS2', true, '00000000000'
 from grp
 where not exists (select 1 from users where email = 'admin@escola.local');
+
+-- Master padrão
+with grp as (select id from user_groups where name = 'Master')
+insert into users (group_id, name, email, password_hash, is_active, cpf)
+select grp.id, 'Bruno Master', 'bruno@rocketup.com.br', '$2b$10$cwZEAq72l9leA7yffb4BaOssDnyyytWaFTQeQ3pST/kp8QAOsQiWi', true, '88888888888'
+from grp
+where not exists (select 1 from users where email = 'bruno@rocketup.com.br');
 
 -- Escola modelo (opcional)
 insert into school (name)
