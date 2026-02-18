@@ -73,31 +73,31 @@ const navSections: { title: string; items: NavEntry[] }[] = [
     items: [
       {
         label: "Visão Geral",
-        href: "/monitoramento/visao-geral",
+        href: "/monitoring/overview",
         icon: "monitoring_overview",
         permission: "MONITORING_VIEW",
       },
       {
         label: "Salas",
-        href: "/monitoramento/salas",
+        href: "/monitoring/rooms",
         icon: "monitoring_rooms",
         permission: "MONITORING_VIEW",
       },
       {
         label: "Portarias",
-        href: "/monitoramento/portarias",
+        href: "/monitoring/gateways",
         icon: "monitoring_gateways",
         permission: "MONITORING_VIEW",
       },
       {
         label: "Eventos de Acesso (RFID)",
-        href: "/monitoramento/eventos-acesso",
+        href: "/monitoring/access-events",
         icon: "monitoring_events",
         permission: "MONITORING_VIEW",
       },
       {
         label: "Leituras (Temp/Umid)",
-        href: "/monitoramento/leituras",
+        href: "/monitoring/readings",
         icon: "monitoring_readings",
         permission: "MONITORING_VIEW",
       },
@@ -112,13 +112,13 @@ const navSections: { title: string; items: NavEntry[] }[] = [
       { label: "Configurações", href: "/settings", icon: "permissions", permission: "settings.read" },
       {
         label: "Config. Monitoramento",
-        href: "/settings/monitoramento",
+        href: "/settings/monitoring",
         icon: "monitoring_settings",
         permission: "ADMIN_MONITORING_SETTINGS",
       },
       {
         label: "Simulador de Hardware",
-        href: "/settings/simulador-hardware",
+        href: "/settings/hardware-simulator",
         icon: "hardware_simulator",
         permission: "ADMIN_HARDWARE_SIMULATOR",
       },

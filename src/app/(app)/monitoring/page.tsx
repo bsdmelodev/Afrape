@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
-export default function LegacyMonitoringOverviewPage() {
+export default function MonitoringIndexPage() {
   redirect("/monitoring/overview");
 }

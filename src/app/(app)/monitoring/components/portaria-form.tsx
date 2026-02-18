@@ -87,7 +87,7 @@ export function PortariaForm({
           name="name"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Nome do device</FormLabel>
+              <FormLabel>Nome do dispositivo</FormLabel>
               <FormControl>
                 <Input placeholder="Portaria principal" {...field} />
               </FormControl>
@@ -103,7 +103,7 @@ export function PortariaForm({
             <FormItem className="flex items-center justify-between rounded-md border p-3">
               <div>
                 <FormLabel>Status</FormLabel>
-                <p className="text-xs text-muted-foreground">Ativar/desativar device de portaria</p>
+                <p className="text-xs text-muted-foreground">Ativar/desativar dispositivo de portaria</p>
               </div>
               <FormControl>
                 <Switch checked={field.value} onCheckedChange={field.onChange} />

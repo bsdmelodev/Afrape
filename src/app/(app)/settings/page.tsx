@@ -78,7 +78,7 @@ export default async function SettingsPage() {
           <CardContent className="flex flex-wrap gap-3">
             {canMonitoringSettings ? (
               <Link
-                href="/settings/monitoramento"
+                href="/settings/monitoring"
                 className="rounded-md border px-3 py-2 text-sm font-medium hover:bg-muted"
               >
                 Configurações -&gt; Monitoramento
@@ -86,7 +86,7 @@ export default async function SettingsPage() {
             ) : null}
             {canSimulator ? (
               <Link
-                href="/settings/simulador-hardware"
+                href="/settings/hardware-simulator"
                 className="rounded-md border px-3 py-2 text-sm font-medium hover:bg-muted"
               >
                 Simulação -&gt; Simulador de Hardware

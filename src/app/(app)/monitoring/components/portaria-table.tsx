@@ -30,14 +30,14 @@ export function PortariaTable({
   const [isPending, startTransition] = useTransition();
 
   const remove = (id: number) => {
-    if (!confirm("Deseja remover este device de portaria?")) return;
+    if (!confirm("Deseja remover este dispositivo de portaria?")) return;
     startTransition(async () => {
       const result = await deleteDevice(id);
       if (result?.error) {
         toast.error(result.error);
         return;
       }
-      toast.success("Device removido");
+      toast.success("Dispositivo removido");
     });
   };
 
@@ -45,7 +45,7 @@ export function PortariaTable({
     const base: ColumnDef<DeviceRow>[] = [
       {
         accessorKey: "name",
-        header: "Device",
+        header: "Dispositivo",
         cell: ({ row }) => row.original.name,
       },
       {
@@ -117,7 +117,7 @@ export function PortariaTable({
         ) : null}
       </div>
 
-      <DataTable columns={columns} data={data} emptyMessage="Nenhum device PORTARIA cadastrado." />
+      <DataTable columns={columns} data={data} emptyMessage="Nenhum dispositivo PORTARIA cadastrado." />
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-lg">
@@ -126,7 +126,7 @@ export function PortariaTable({
             <DialogDescription>
               {selected
                 ? "Atualize o status, nome ou regenere o token."
-                : "Cadastre um novo device para a portaria RFID."}
+                : "Cadastre um novo dispositivo para a portaria RFID."}
             </DialogDescription>
           </DialogHeader>
           <PortariaForm device={selected} onSuccess={() => setOpen(false)} />

@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
-export default function MonitoringIndexPage() {
-  redirect("/monitoramento/visao-geral");
+export default function LegacyMonitoringPage() {
+  redirect("/monitoring/overview");
 }

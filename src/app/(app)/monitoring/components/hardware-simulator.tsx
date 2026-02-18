@@ -313,7 +313,7 @@ export function HardwareSimulator({
       const parsedHumidity = Number(humidity);
 
       if (!parsedRoomId || !parsedDeviceId || Number.isNaN(parsedTemperature) || Number.isNaN(parsedHumidity)) {
-        toast.error("Preencha sala, device, temperatura e umidade válidos.");
+        toast.error("Preencha sala, dispositivo, temperatura e umidade válidos.");
         return;
       }
 
@@ -372,14 +372,14 @@ export function HardwareSimulator({
         return;
       }
       if (!hasSalaDevices) {
-        setTelemetryMessage("Auto: selecione um device SALA válido.");
+        setTelemetryMessage("Auto: selecione um dispositivo SALA válido.");
         return;
       }
 
       const parsedRoomId = Number(roomId);
       const parsedDeviceId = Number(salaDeviceId);
       if (!parsedRoomId || !parsedDeviceId) {
-        setTelemetryMessage("Auto: selecione sala e device válidos.");
+        setTelemetryMessage("Auto: selecione sala e dispositivo válidos.");
         return;
       }
 
@@ -443,14 +443,14 @@ export function HardwareSimulator({
         return;
       }
       if (!hasPortariaDevices) {
-        setRfidMessage("Auto: selecione um device PORTARIA válido.");
+        setRfidMessage("Auto: selecione um dispositivo PORTARIA válido.");
         scheduleNext();
         return;
       }
 
       const parsedDeviceId = Number(portariaId);
       if (!parsedDeviceId) {
-        setRfidMessage("Auto: selecione um device PORTARIA válido.");
+        setRfidMessage("Auto: selecione um dispositivo PORTARIA válido.");
         scheduleNext();
         return;
       }
@@ -508,13 +508,13 @@ export function HardwareSimulator({
           <CardHeader>
             <CardTitle>Simular Portaria RFID</CardTitle>
             <CardDescription>
-              Selecione um device de portaria e informe o `student_id` para registrar o evento.
+              Selecione um dispositivo de portaria e informe o `student_id` para registrar o evento.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-4 md:grid-cols-3">
               <div className="space-y-2">
-                <Label>Device PORTARIA</Label>
+                <Label>Dispositivo PORTARIA</Label>
                 <Select value={portariaId} onValueChange={setPortariaId}>
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione" />
@@ -599,7 +599,7 @@ export function HardwareSimulator({
             ) : null}
             {!hasPortariaDevices ? (
               <p className="text-sm text-destructive">
-                Cadastre pelo menos um device do tipo PORTARIA para simular entradas.
+                Cadastre pelo menos um dispositivo do tipo PORTARIA para simular entradas.
               </p>
             ) : null}
 
@@ -652,7 +652,7 @@ export function HardwareSimulator({
               </div>
 
               <div className="space-y-2">
-                <Label>Device SALA</Label>
+                <Label>Dispositivo SALA</Label>
                 <Select value={salaDeviceId} onValueChange={setSalaDeviceId}>
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione" />
@@ -737,7 +737,7 @@ export function HardwareSimulator({
             ) : null}
             {!hasSalaDevices ? (
               <p className="text-sm text-destructive">
-                Cadastre pelo menos um device do tipo SALA para simular telemetria.
+                Cadastre pelo menos um dispositivo do tipo SALA para simular telemetria.
               </p>
             ) : null}
 

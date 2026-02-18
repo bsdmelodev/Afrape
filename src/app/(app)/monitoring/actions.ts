@@ -56,7 +56,7 @@ const simulateAccessSchema = z.object({
 
 const simulateTelemetrySchema = z.object({
   roomId: z.number().int().positive("Selecione a sala"),
-  deviceId: z.number().int().positive("Selecione o device"),
+  deviceId: z.number().int().positive("Selecione o dispositivo"),
   temperature: z.number(),
   humidity: z.number(),
   measuredAt: z.string().optional(),
@@ -73,17 +73,17 @@ const generateTelemetrySchema = z.object({
 });
 
 function revalidateMonitoringViews() {
-  revalidatePath("/monitoramento/visao-geral");
-  revalidatePath("/monitoramento/salas");
-  revalidatePath("/monitoramento/portarias");
-  revalidatePath("/monitoramento/eventos-acesso");
-  revalidatePath("/monitoramento/leituras");
+  revalidatePath("/monitoring/overview");
+  revalidatePath("/monitoring/rooms");
+  revalidatePath("/monitoring/gateways");
+  revalidatePath("/monitoring/access-events");
+  revalidatePath("/monitoring/readings");
 }
 
 function revalidateMonitoringAdminPages() {
   revalidateMonitoringViews();
-  revalidatePath("/settings/monitoramento");
-  revalidatePath("/settings/simulador-hardware");
+  revalidatePath("/settings/monitoring");
+  revalidatePath("/settings/hardware-simulator");
 }
 
 export async function createRoom(data: z.infer<typeof roomSchema>) {
