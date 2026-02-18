@@ -49,6 +49,7 @@ export async function GET() {
         device: latest.device,
         temperature,
         humidity,
+        metadata: latest.metadata ?? null,
         status: evaluateReadingStatus(temperature, humidity, settings),
       };
     })

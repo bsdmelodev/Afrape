@@ -111,6 +111,43 @@ Observação: garanta escrita em `public/uploads` ou adapte `/api/upload/avatar`
 - `npm run dev` — desenvolvimento
 - `npm run lint` — ESLint
 
+## Integração ESP32 (IoT)
+- Transporte: **HTTP REST**
+- Conectividade: **Wi-Fi**
+- Sensor de sala (I²C): **SHT31 / SHT35 (Sensirion)**
+- Leitor de portaria RFID 13,56 MHz: **PN532**
+
+### Envio de acesso RFID (ESP32 + PN532)
+`POST /api/iot/access` com header `Authorization: Bearer <token_dispositivo>`
+
+```json
+{
+  "student_id": 123,
+  "card_uid": "04A1B2C3",
+  "reader_model": "PN532",
+  "frequency_mhz": 13.56,
+  "transport": "HTTP_REST",
+  "connectivity": "WIFI",
+  "occurred_at": "2026-02-18T12:00:00Z"
+}
+```
+
+### Envio de telemetria (ESP32 + SHT31/SHT35)
+`POST /api/iot/telemetry` com header `Authorization: Bearer <token_dispositivo>`
+
+```json
+{
+  "room_id": 1,
+  "temperature": 26.5,
+  "humidity": 58.2,
+  "sensor_model": "SHT31",
+  "i2c_address": "0x44",
+  "transport": "HTTP_REST",
+  "connectivity": "WIFI",
+  "measured_at": "2026-02-18T12:00:00Z"
+}
+```
+
 ## Observações
 - Prisma Client apenas no servidor.
 - Não commitar `.env.dev`/`.env.prod`.

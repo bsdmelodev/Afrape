@@ -1,5 +1,9 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { MONITORING_PERMISSIONS } from "@/lib/monitoring";
+import {
+  ensureMonitoringSettings,
+  MONITORING_PERMISSIONS,
+  resolveMonitoringHardwareProfile,
+} from "@/lib/monitoring";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/rbac";
 import { HardwareSimulator } from "../../monitoring/components/hardware-simulator";
@@ -7,7 +11,7 @@ import { HardwareSimulator } from "../../monitoring/components/hardware-simulato
 export default async function HardwareSimulatorPage() {
   await requirePermission(MONITORING_PERMISSIONS.HARDWARE_SIMULATOR);
 
-  const [rooms, devices, students] = await Promise.all([
+  const [rooms, devices, students, settings] = await Promise.all([
     prisma.room.findMany({
       where: { isActive: true },
       orderBy: { name: "asc" },
@@ -21,14 +25,16 @@ export default async function HardwareSimulatorPage() {
       orderBy: { name: "asc" },
       select: { id: true, name: true, isActive: true },
     }),
+    ensureMonitoringSettings(),
   ]);
+  const hardwareProfile = resolveMonitoringHardwareProfile(settings.hardwareProfile);
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold">Simulação • Simulador de Hardware</h1>
         <p className="text-sm text-muted-foreground">
-          Simule eventos RFID e leituras de sensores, com parâmetros atualizados a cada 10 segundos.
+          Simule ESP32 (Wi-Fi) com SHT31/SHT35 e PN532, enviando eventos no padrão HTTP REST.
         </p>
       </div>
 
@@ -42,6 +48,7 @@ export default async function HardwareSimulatorPage() {
             students={students}
             portariaDevices={devices.filter((device) => device.type === "PORTARIA")}
             salaDevices={devices.filter((device) => device.type === "SALA")}
+            hardwareProfile={hardwareProfile}
           />
         </CardContent>
       </Card>

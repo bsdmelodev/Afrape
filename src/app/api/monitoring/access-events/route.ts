@@ -6,6 +6,12 @@ import { MONITORING_PERMISSIONS } from "@/lib/monitoring";
 
 const resultSchema = z.enum(["ALLOW", "DENY"]);
 
+function metadataValue(metadata: unknown, key: string) {
+  if (!metadata || typeof metadata !== "object") return undefined;
+  const value = (metadata as Record<string, unknown>)[key];
+  return typeof value === "string" ? value : undefined;
+}
+
 function parseDate(value: string | null) {
   if (!value) return null;
   const dt = new Date(value);
@@ -76,8 +82,13 @@ export async function GET(request: Request) {
     prisma.accessEvent.count({ where }),
   ]);
 
+  const items = events.map((event) => ({
+    ...event,
+    card_uid: metadataValue(event.metadata, "cardUid") ?? null,
+  }));
+
   return NextResponse.json({
-    items: events,
+    items,
     total,
     page,
     per_page: perPage,

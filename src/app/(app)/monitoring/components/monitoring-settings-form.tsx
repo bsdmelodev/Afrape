@@ -27,6 +27,21 @@ const schema = z
     telemetryIntervalSeconds: z.string().min(1, "Informe o intervalo"),
     unlockDurationSeconds: z.string().min(1, "Informe a duração de liberação"),
     allowOnlyActiveStudents: z.boolean(),
+    hardwareProfile: z.object({
+      telemetry: z.object({
+        sensorModel: z.enum(["SHT31", "SHT35"]),
+        i2cAddress: z
+          .string()
+          .trim()
+          .regex(/^0[xX][0-9A-Fa-f]{2}$/, "Use endereço I²C no formato 0x44."),
+        endpoint: z.string().min(1, "Informe o endpoint REST da telemetria."),
+      }),
+      access: z.object({
+        readerModel: z.literal("PN532"),
+        frequencyMHz: z.string().min(1, "Informe a frequência RFID."),
+        endpoint: z.string().min(1, "Informe o endpoint REST de acesso."),
+      }),
+    }),
   })
   .refine((value) => Number(value.tempMin) < Number(value.tempMax), {
     path: ["tempMin"],
@@ -50,6 +65,18 @@ export function MonitoringSettingsForm({
     telemetryIntervalSeconds: number;
     unlockDurationSeconds: number;
     allowOnlyActiveStudents: boolean;
+    hardwareProfile: {
+      telemetry: {
+        sensorModel: "SHT31" | "SHT35";
+        i2cAddress: string;
+        endpoint: string;
+      };
+      access: {
+        readerModel: "PN532";
+        frequencyMHz: number;
+        endpoint: string;
+      };
+    };
   };
 }) {
   const [isPending, startTransition] = useTransition();
@@ -63,6 +90,18 @@ export function MonitoringSettingsForm({
       telemetryIntervalSeconds: String(defaultValues.telemetryIntervalSeconds),
       unlockDurationSeconds: String(defaultValues.unlockDurationSeconds),
       allowOnlyActiveStudents: defaultValues.allowOnlyActiveStudents,
+      hardwareProfile: {
+        telemetry: {
+          sensorModel: defaultValues.hardwareProfile.telemetry.sensorModel,
+          i2cAddress: defaultValues.hardwareProfile.telemetry.i2cAddress,
+          endpoint: defaultValues.hardwareProfile.telemetry.endpoint,
+        },
+        access: {
+          readerModel: defaultValues.hardwareProfile.access.readerModel,
+          frequencyMHz: String(defaultValues.hardwareProfile.access.frequencyMHz),
+          endpoint: defaultValues.hardwareProfile.access.endpoint,
+        },
+      },
     },
   });
 
@@ -76,6 +115,18 @@ export function MonitoringSettingsForm({
         telemetryIntervalSeconds: Number(values.telemetryIntervalSeconds),
         unlockDurationSeconds: Number(values.unlockDurationSeconds),
         allowOnlyActiveStudents: values.allowOnlyActiveStudents,
+        hardwareProfile: {
+          telemetry: {
+            sensorModel: values.hardwareProfile.telemetry.sensorModel,
+            i2cAddress: values.hardwareProfile.telemetry.i2cAddress,
+            endpoint: values.hardwareProfile.telemetry.endpoint,
+          },
+          access: {
+            readerModel: values.hardwareProfile.access.readerModel,
+            frequencyMHz: Number(values.hardwareProfile.access.frequencyMHz),
+            endpoint: values.hardwareProfile.access.endpoint,
+          },
+        },
       };
 
       if (
@@ -211,6 +262,132 @@ export function MonitoringSettingsForm({
             </FormItem>
           )}
         />
+
+        <div className="space-y-3 rounded-lg border p-4">
+          <div>
+            <p className="text-sm font-medium">Perfil de Hardware IoT (ESP32 + SHT3x + PN532)</p>
+            <p className="text-xs text-muted-foreground">
+              Comunicação fixa via HTTP REST sobre Wi-Fi, com parâmetros específicos do hardware.
+            </p>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <FormItem>
+              <FormLabel>Protocolo</FormLabel>
+              <FormControl>
+                <Input value="HTTP REST" disabled />
+              </FormControl>
+            </FormItem>
+
+            <FormItem>
+              <FormLabel>Conectividade</FormLabel>
+              <FormControl>
+                <Input value="Wi-Fi (ESP32)" disabled />
+              </FormControl>
+            </FormItem>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-3">
+            <FormField
+              control={form.control}
+              name="hardwareProfile.telemetry.sensorModel"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Sensor Temp/Umid</FormLabel>
+                  <FormControl>
+                    <select
+                      value={field.value}
+                      onChange={(event) => field.onChange(event.target.value)}
+                      className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                    >
+                      <option value="SHT31">SHT31</option>
+                      <option value="SHT35">SHT35</option>
+                    </select>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="hardwareProfile.telemetry.i2cAddress"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Endereço I²C</FormLabel>
+                  <FormControl>
+                    <Input placeholder="0x44" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="hardwareProfile.telemetry.endpoint"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Endpoint REST (telemetria)</FormLabel>
+                  <FormControl>
+                    <Input placeholder="/api/iot/telemetry" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-3">
+            <FormField
+              control={form.control}
+              name="hardwareProfile.access.readerModel"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Leitor RFID</FormLabel>
+                  <FormControl>
+                    <select
+                      value={field.value}
+                      onChange={(event) => field.onChange(event.target.value)}
+                      className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                    >
+                      <option value="PN532">PN532 (13,56 MHz)</option>
+                    </select>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="hardwareProfile.access.frequencyMHz"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Frequência RFID (MHz)</FormLabel>
+                  <FormControl>
+                    <Input type="number" step="0.01" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="hardwareProfile.access.endpoint"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Endpoint REST (acesso)</FormLabel>
+                  <FormControl>
+                    <Input placeholder="/api/iot/access" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        </div>
 
         <Button type="submit" disabled={isPending} className="justify-self-end">
           {isPending ? "Salvando..." : "Salvar"}

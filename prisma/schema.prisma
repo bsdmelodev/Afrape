@@ -391,6 +391,7 @@ model AccessEvent {
   studentId  Int          @map("student_id")
   result     AccessResult
   reason     String       @db.VarChar(50)
+  metadata   Json?        @db.JsonB
   occurredAt DateTime     @map("occurred_at") @db.Timestamp(6)
   createdAt  DateTime     @map("created_at") @default(now()) @db.Timestamp(6)
   device     Device       @relation(fields: [deviceId], references: [id], onDelete: Restrict, map: "fk_access_events_device")
@@ -406,6 +407,7 @@ model TelemetryReading {
   roomId     Int       @map("room_id")
   temperature Decimal  @db.Decimal(5, 2)
   humidity   Decimal   @db.Decimal(5, 2)
+  metadata   Json?     @db.JsonB
   measuredAt DateTime  @map("measured_at") @db.Timestamp(6)
   createdAt  DateTime  @map("created_at") @default(now()) @db.Timestamp(6)
   device     Device    @relation(fields: [deviceId], references: [id], onDelete: Restrict, map: "fk_telemetry_readings_device")
@@ -425,6 +427,7 @@ model MonitoringSettings {
   telemetryIntervalSeconds  Int       @map("telemetry_interval_seconds")
   unlockDurationSeconds     Int       @map("unlock_duration_seconds")
   allowOnlyActiveStudents   Boolean   @map("allow_only_active_students") @default(true)
+  hardwareProfile           Json?     @map("hardware_profile") @db.JsonB
   createdAt                 DateTime  @map("created_at") @default(now()) @db.Timestamp(6)
   updatedAt                 DateTime  @map("updated_at") @default(now()) @db.Timestamp(6)
 

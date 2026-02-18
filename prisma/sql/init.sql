@@ -503,6 +503,7 @@ create table access_events (
   student_id int not null,
   result "AccessResult" not null,
   reason varchar(50) not null,
+  metadata jsonb,
   occurred_at timestamp not null,
   created_at timestamp not null default now(),
   constraint fk_access_events_device
@@ -522,6 +523,7 @@ create table telemetry_readings (
   room_id int not null,
   temperature numeric(5,2) not null,
   humidity numeric(5,2) not null,
+  metadata jsonb,
   measured_at timestamp not null,
   created_at timestamp not null default now(),
   constraint fk_telemetry_readings_device
@@ -547,6 +549,7 @@ create table monitoring_settings (
   telemetry_interval_seconds int not null,
   unlock_duration_seconds int not null,
   allow_only_active_students boolean not null default true,
+  hardware_profile jsonb,
   created_at timestamp not null default now(),
   updated_at timestamp not null default now(),
   constraint ck_monitoring_settings_ranges
@@ -671,9 +674,32 @@ insert into monitoring_settings (
   hum_max,
   telemetry_interval_seconds,
   unlock_duration_seconds,
-  allow_only_active_students
+  allow_only_active_students,
+  hardware_profile
 )
-select 20, 28, 40, 70, 60, 5, true
+select
+  20,
+  28,
+  40,
+  70,
+  60,
+  5,
+  true,
+  jsonb_build_object(
+    'transport', 'HTTP_REST',
+    'esp32', jsonb_build_object('connectivity', 'WIFI'),
+    'telemetry', jsonb_build_object(
+      'sensorModel', 'SHT31',
+      'supportedSensorModels', jsonb_build_array('SHT31', 'SHT35'),
+      'i2cAddress', '0x44',
+      'endpoint', '/api/iot/telemetry'
+    ),
+    'access', jsonb_build_object(
+      'readerModel', 'PN532',
+      'frequencyMHz', 13.56,
+      'endpoint', '/api/iot/access'
+    )
+  )
 where not exists (select 1 from monitoring_settings);
 
 with room_seed as (

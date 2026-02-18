@@ -39,6 +39,16 @@ function parsePositiveInt(value: string | undefined, fallback: number) {
   return parsed;
 }
 
+function telemetrySensor(metadata: unknown) {
+  if (!metadata || typeof metadata !== "object") return "-";
+  const meta = metadata as Record<string, unknown>;
+  const sensorModel = typeof meta.sensorModel === "string" ? meta.sensorModel : null;
+  const i2cAddress = typeof meta.i2cAddress === "string" ? meta.i2cAddress : null;
+  if (!sensorModel && !i2cAddress) return "-";
+  if (sensorModel && i2cAddress) return `${sensorModel} (${i2cAddress})`;
+  return sensorModel ?? i2cAddress ?? "-";
+}
+
 export default async function MonitoringRoomsPage({
   searchParams,
 }: {
@@ -128,7 +138,7 @@ export default async function MonitoringRoomsPage({
       <div>
         <h1 className="text-2xl font-semibold">Monitoramento • Salas</h1>
         <p className="text-sm text-muted-foreground">
-          Gerencie salas e acompanhe histórico de leituras por ambiente.
+          Gerencie salas e acompanhe histórico de leituras por ambiente (ESP32 + SHT31/SHT35).
         </p>
       </div>
 
@@ -184,6 +194,7 @@ export default async function MonitoringRoomsPage({
                     <TableRow>
                       <TableHead>Data/Hora</TableHead>
                       <TableHead>Dispositivo</TableHead>
+                      <TableHead>Sensor I²C</TableHead>
                       <TableHead>Temperatura</TableHead>
                       <TableHead>Umidade</TableHead>
                       <TableHead>Status</TableHead>
@@ -202,6 +213,7 @@ export default async function MonitoringRoomsPage({
                               {formatDate(reading.measuredAt)} {formatTime(reading.measuredAt)}
                             </TableCell>
                             <TableCell>{reading.device.name}</TableCell>
+                            <TableCell>{telemetrySensor(reading.metadata)}</TableCell>
                             <TableCell>{formatDecimal(temp, true)} °C</TableCell>
                             <TableCell>{formatDecimal(hum, true)} %</TableCell>
                             <TableCell>
@@ -212,7 +224,7 @@ export default async function MonitoringRoomsPage({
                       })
                     ) : (
                       <TableRow>
-                        <TableCell colSpan={5} className="text-center text-muted-foreground">
+                        <TableCell colSpan={6} className="text-center text-muted-foreground">
                           Nenhuma leitura encontrada para a sala selecionada.
                         </TableCell>
                       </TableRow>

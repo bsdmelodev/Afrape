@@ -50,6 +50,16 @@ function resolveStart(interval: string, from?: string) {
   return new Date(now - 24 * 60 * 60 * 1000);
 }
 
+function telemetrySensor(metadata: unknown) {
+  if (!metadata || typeof metadata !== "object") return "-";
+  const meta = metadata as Record<string, unknown>;
+  const sensorModel = typeof meta.sensorModel === "string" ? meta.sensorModel : null;
+  const i2cAddress = typeof meta.i2cAddress === "string" ? meta.i2cAddress : null;
+  if (!sensorModel && !i2cAddress) return "-";
+  if (sensorModel && i2cAddress) return `${sensorModel} (${i2cAddress})`;
+  return sensorModel ?? i2cAddress ?? "-";
+}
+
 export default async function MonitoringReadingsPage({
   searchParams,
 }: {
@@ -120,7 +130,7 @@ export default async function MonitoringReadingsPage({
       <div>
         <h1 className="text-2xl font-semibold">Monitoramento • Leituras</h1>
         <p className="text-sm text-muted-foreground">
-          Consulta de leituras de temperatura/umidade por sala e período.
+          Consulta de leituras de temperatura/umidade por sala e período (ESP32 + SHT31/SHT35).
         </p>
       </div>
 
@@ -203,6 +213,7 @@ export default async function MonitoringReadingsPage({
                   <TableHead>Data/Hora</TableHead>
                   <TableHead>Sala</TableHead>
                   <TableHead>Dispositivo</TableHead>
+                  <TableHead>Sensor I²C</TableHead>
                   <TableHead>Temperatura</TableHead>
                   <TableHead>Umidade</TableHead>
                   <TableHead>Status</TableHead>
@@ -217,6 +228,7 @@ export default async function MonitoringReadingsPage({
                       </TableCell>
                       <TableCell>{reading.room.name}</TableCell>
                       <TableCell>{reading.device.name}</TableCell>
+                      <TableCell>{telemetrySensor(reading.metadata)}</TableCell>
                       <TableCell>{formatDecimal(reading.temperature, true)} °C</TableCell>
                       <TableCell>{formatDecimal(reading.humidity, true)} %</TableCell>
                       <TableCell>
@@ -226,7 +238,7 @@ export default async function MonitoringReadingsPage({
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center text-muted-foreground">
+                    <TableCell colSpan={7} className="text-center text-muted-foreground">
                       Nenhuma leitura encontrada para os filtros selecionados.
                     </TableCell>
                   </TableRow>

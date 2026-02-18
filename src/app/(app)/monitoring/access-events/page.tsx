@@ -30,6 +30,12 @@ function accessResultLabel(result: AccessResult) {
   return result === "ALLOW" ? "Permitido" : "Negado";
 }
 
+function eventCardUid(metadata: unknown) {
+  if (!metadata || typeof metadata !== "object") return "-";
+  const value = (metadata as Record<string, unknown>).cardUid;
+  return typeof value === "string" && value.length > 0 ? value : "-";
+}
+
 export default async function MonitoringAccessEventsPage({
   searchParams,
 }: {
@@ -102,7 +108,7 @@ export default async function MonitoringAccessEventsPage({
       <div>
         <h1 className="text-2xl font-semibold">Monitoramento • Eventos de Acesso</h1>
         <p className="text-sm text-muted-foreground">
-          Histórico de eventos RFID com filtros por aluno, resultado, período e dispositivo.
+          Histórico de eventos RFID (PN532) com filtros por aluno, resultado, período e dispositivo.
         </p>
       </div>
 
@@ -162,6 +168,7 @@ export default async function MonitoringAccessEventsPage({
                 <TableRow>
                   <TableHead>Ocorrido em</TableHead>
                   <TableHead>Dispositivo</TableHead>
+                  <TableHead>UID RFID</TableHead>
                   <TableHead>Aluno</TableHead>
                   <TableHead>Resultado</TableHead>
                   <TableHead>Motivo</TableHead>
@@ -175,6 +182,7 @@ export default async function MonitoringAccessEventsPage({
                         {formatDate(event.occurredAt)} {formatTime(event.occurredAt)}
                       </TableCell>
                       <TableCell>{event.device.name}</TableCell>
+                      <TableCell>{eventCardUid(event.metadata)}</TableCell>
                       <TableCell>{studentNameById.get(event.studentId) ?? `#${event.studentId}`}</TableCell>
                       <TableCell>
                         <Badge variant={event.result === "ALLOW" ? "default" : "secondary"}>
@@ -186,7 +194,7 @@ export default async function MonitoringAccessEventsPage({
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center text-muted-foreground">
+                    <TableCell colSpan={6} className="text-center text-muted-foreground">
                       Nenhum evento encontrado.
                     </TableCell>
                   </TableRow>

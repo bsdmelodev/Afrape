@@ -9,6 +9,15 @@ import {
 
 const bodySchema = z.object({
   student_id: z.coerce.number().int().positive("student_id inválido"),
+  card_uid: z
+    .string()
+    .trim()
+    .regex(/^[0-9A-Fa-f]{4,32}$/, "card_uid inválido")
+    .optional(),
+  reader_model: z.enum(["PN532"]).optional(),
+  frequency_mhz: z.coerce.number().positive("frequency_mhz inválido").optional(),
+  transport: z.literal("HTTP_REST").optional(),
+  connectivity: z.literal("WIFI").optional(),
   occurred_at: z.string().optional(),
 });
 
@@ -47,6 +56,13 @@ export async function POST(request: Request) {
     device: deviceResult.device,
     studentId: parsed.data.student_id,
     occurredAt,
+    metadata: {
+      cardUid: parsed.data.card_uid,
+      readerModel: parsed.data.reader_model,
+      frequencyMHz: parsed.data.frequency_mhz,
+      transport: parsed.data.transport,
+      connectivity: parsed.data.connectivity,
+    },
   });
 
   const statusCode =

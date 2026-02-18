@@ -11,6 +11,14 @@ const bodySchema = z.object({
   room_id: z.coerce.number().int().positive("room_id inválido"),
   temperature: z.coerce.number(),
   humidity: z.coerce.number(),
+  sensor_model: z.enum(["SHT31", "SHT35"]).optional(),
+  i2c_address: z
+    .string()
+    .trim()
+    .regex(/^0[xX][0-9A-Fa-f]{2}$/, "i2c_address inválido")
+    .optional(),
+  transport: z.literal("HTTP_REST").optional(),
+  connectivity: z.literal("WIFI").optional(),
   measured_at: z.string().optional(),
 });
 
@@ -50,6 +58,12 @@ export async function POST(request: Request) {
     temperature: parsed.data.temperature,
     humidity: parsed.data.humidity,
     measuredAt,
+    metadata: {
+      sensorModel: parsed.data.sensor_model,
+      i2cAddress: parsed.data.i2c_address,
+      transport: parsed.data.transport,
+      connectivity: parsed.data.connectivity,
+    },
   });
 
   if (!result.ok) {

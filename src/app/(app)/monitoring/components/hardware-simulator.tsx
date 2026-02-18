@@ -21,6 +21,21 @@ import { generateTelemetryBatch, simulateRfidAccess, simulateTelemetry } from ".
 type RoomOption = { id: number; name: string };
 type DeviceOption = { id: number; name: string; roomId: number | null; isActive: boolean };
 type StudentOption = { id: number; name: string; isActive: boolean };
+type HardwareProfile = {
+  transport: "HTTP_REST";
+  esp32: { connectivity: "WIFI" };
+  telemetry: {
+    sensorModel: "SHT31" | "SHT35";
+    supportedSensorModels: ("SHT31" | "SHT35")[];
+    i2cAddress: string;
+    endpoint: string;
+  };
+  access: {
+    readerModel: "PN532";
+    frequencyMHz: number;
+    endpoint: string;
+  };
+};
 
 type AccessSimulationResult = {
   result: "ALLOW" | "DENY";
@@ -28,16 +43,36 @@ type AccessSimulationResult = {
   unlockDurationSeconds: number;
 };
 
+function randomHexUid(bytes = 4) {
+  return Array.from({ length: bytes }, () =>
+    Math.floor(Math.random() * 256)
+      .toString(16)
+      .padStart(2, "0")
+      .toUpperCase()
+  ).join("");
+}
+
+function normalizeI2cInput(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return trimmed;
+  if (/^0[xX][0-9A-Fa-f]{2}$/.test(trimmed)) {
+    return `0x${trimmed.slice(2).toUpperCase()}`;
+  }
+  return trimmed;
+}
+
 export function HardwareSimulator({
   rooms,
   students,
   portariaDevices,
   salaDevices,
+  hardwareProfile,
 }: {
   rooms: RoomOption[];
   students: StudentOption[];
   portariaDevices: DeviceOption[];
   salaDevices: DeviceOption[];
+  hardwareProfile: HardwareProfile;
 }) {
   const [isPending, startTransition] = useTransition();
 
@@ -45,6 +80,7 @@ export function HardwareSimulator({
     portariaDevices[0] ? String(portariaDevices[0].id) : ""
   );
   const [studentId, setStudentId] = useState(students[0] ? String(students[0].id) : "");
+  const [cardUid, setCardUid] = useState("04A1B2C3");
   const [occurredAt, setOccurredAt] = useState("");
   const [accessResult, setAccessResult] = useState<AccessSimulationResult | null>(null);
   const [rfidMessage, setRfidMessage] = useState<string>("");
@@ -58,6 +94,8 @@ export function HardwareSimulator({
   );
   const [temperature, setTemperature] = useState("26.5");
   const [humidity, setHumidity] = useState("58.2");
+  const [sensorModel, setSensorModel] = useState<"SHT31" | "SHT35">(hardwareProfile.telemetry.sensorModel);
+  const [i2cAddress, setI2cAddress] = useState(normalizeI2cInput(hardwareProfile.telemetry.i2cAddress));
   const [measuredAt, setMeasuredAt] = useState("");
   const [telemetryMessage, setTelemetryMessage] = useState<string>("");
   const [autoTelemetryEnabled, setAutoTelemetryEnabled] = useState(false);
@@ -174,6 +212,7 @@ export function HardwareSimulator({
       return;
     }
     setStudentId(suggestedStudent);
+    setCardUid(randomHexUid());
     setOccurredAt(new Date().toISOString().slice(0, 16));
   };
 
@@ -188,6 +227,8 @@ export function HardwareSimulator({
     deviceIdValue,
     temperatureValue,
     humidityValue,
+    sensorModelValue,
+    i2cAddressValue,
     measuredAtValue,
     silent,
   }: {
@@ -195,6 +236,8 @@ export function HardwareSimulator({
     deviceIdValue: number;
     temperatureValue: number;
     humidityValue: number;
+    sensorModelValue: "SHT31" | "SHT35";
+    i2cAddressValue: string;
     measuredAtValue?: string;
     silent?: boolean;
   }) => {
@@ -203,6 +246,8 @@ export function HardwareSimulator({
       deviceId: deviceIdValue,
       temperature: temperatureValue,
       humidity: humidityValue,
+      sensorModel: sensorModelValue,
+      i2cAddress: i2cAddressValue,
       measuredAt: measuredAtValue,
     });
 
@@ -228,17 +273,20 @@ export function HardwareSimulator({
   const submitRfid = async ({
     deviceIdValue,
     studentIdValue,
+    cardUidValue,
     occurredAtValue,
     silent,
   }: {
     deviceIdValue: number;
     studentIdValue: number;
+    cardUidValue?: string;
     occurredAtValue?: string;
     silent?: boolean;
   }) => {
     const result = await simulateRfidAccess({
       deviceId: deviceIdValue,
       studentId: studentIdValue,
+      cardUid: cardUidValue,
       occurredAt: occurredAtValue,
       source: silent ? "auto" : "manual",
     });
@@ -284,15 +332,21 @@ export function HardwareSimulator({
 
       const parsedDeviceId = Number(portariaId);
       const parsedStudentId = Number(studentId);
+      const normalizedCardUid = cardUid.trim().toUpperCase();
 
       if (!parsedDeviceId || !parsedStudentId) {
         toast.error("Selecione a portaria e informe student_id válido.");
+        return;
+      }
+      if (normalizedCardUid && !/^[0-9A-F]{4,32}$/.test(normalizedCardUid)) {
+        toast.error("Informe UID RFID válido (hexadecimal).");
         return;
       }
 
       await submitRfid({
         deviceIdValue: parsedDeviceId,
         studentIdValue: parsedStudentId,
+        cardUidValue: normalizedCardUid || undefined,
         occurredAtValue: occurredAt ? new Date(occurredAt).toISOString() : undefined,
       });
     });
@@ -311,9 +365,14 @@ export function HardwareSimulator({
       const parsedDeviceId = Number(salaDeviceId);
       const parsedTemperature = Number(temperature);
       const parsedHumidity = Number(humidity);
+      const normalizedI2cAddress = normalizeI2cInput(i2cAddress);
 
       if (!parsedRoomId || !parsedDeviceId || Number.isNaN(parsedTemperature) || Number.isNaN(parsedHumidity)) {
         toast.error("Preencha sala, dispositivo, temperatura e umidade válidos.");
+        return;
+      }
+      if (!/^0x[0-9A-F]{2}$/.test(normalizedI2cAddress)) {
+        toast.error("Informe endereço I²C válido no formato 0x44.");
         return;
       }
 
@@ -322,6 +381,8 @@ export function HardwareSimulator({
         deviceIdValue: parsedDeviceId,
         temperatureValue: parsedTemperature,
         humidityValue: parsedHumidity,
+        sensorModelValue: sensorModel,
+        i2cAddressValue: normalizedI2cAddress,
         measuredAtValue: measuredAt ? new Date(measuredAt).toISOString() : undefined,
       });
     });
@@ -399,6 +460,8 @@ export function HardwareSimulator({
           deviceIdValue: parsedDeviceId,
           temperatureValue: Number(nextTemp),
           humidityValue: Number(nextHumidity),
+          sensorModelValue: sensorModel,
+          i2cAddressValue: normalizeI2cInput(i2cAddress),
           measuredAtValue: measured,
           silent: true,
         });
@@ -412,7 +475,7 @@ export function HardwareSimulator({
     }, 4000);
 
     return () => clearInterval(interval);
-  }, [autoTelemetryEnabled, roomId, salaDeviceId, hasRooms, hasSalaDevices]);
+  }, [autoTelemetryEnabled, roomId, salaDeviceId, hasRooms, hasSalaDevices, sensorModel, i2cAddress]);
 
   useEffect(() => {
     if (!autoRfidEnabled) return;
@@ -466,7 +529,9 @@ export function HardwareSimulator({
         randomStudentList[Math.floor(Math.random() * randomStudentList.length)];
       const nextStudentId = randomStudent.id;
       const measured = new Date().toISOString();
+      const nextCardUid = randomHexUid();
       setStudentId(String(nextStudentId));
+      setCardUid(nextCardUid);
       setOccurredAt(new Date().toISOString().slice(0, 16));
 
       autoRfidBusyRef.current = true;
@@ -474,6 +539,7 @@ export function HardwareSimulator({
         await submitRfid({
           deviceIdValue: parsedDeviceId,
           studentIdValue: nextStudentId,
+          cardUidValue: nextCardUid,
           occurredAtValue: measured,
           silent: true,
         });
@@ -500,7 +566,7 @@ export function HardwareSimulator({
           <TabsTrigger value="rfid">Simular Portaria RFID</TabsTrigger>
           <TabsTrigger value="telemetria">Simular Sensor de Sala</TabsTrigger>
         </TabsList>
-        <Badge variant="outline">Temp/Umid a cada 4s • RFID a cada 5s</Badge>
+        <Badge variant="outline">ESP32 Wi-Fi • HTTP REST • Temp/Umid 4s • RFID 5s</Badge>
       </div>
 
       <TabsContent value="rfid">
@@ -508,11 +574,30 @@ export function HardwareSimulator({
           <CardHeader>
             <CardTitle>Simular Portaria RFID</CardTitle>
             <CardDescription>
-              Selecione um dispositivo de portaria e informe o `student_id` para registrar o evento.
+              Simula ESP32 + {hardwareProfile.access.readerModel} (13,56 MHz) enviando POST para{" "}
+              <code>{hardwareProfile.access.endpoint}</code>.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-2 rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground md:grid-cols-4">
+              <p>
+                <span className="font-medium text-foreground">Transporte:</span> {hardwareProfile.transport}
+              </p>
+              <p>
+                <span className="font-medium text-foreground">Conectividade:</span>{" "}
+                {hardwareProfile.esp32.connectivity}
+              </p>
+              <p>
+                <span className="font-medium text-foreground">Leitor RFID:</span>{" "}
+                {hardwareProfile.access.readerModel}
+              </p>
+              <p>
+                <span className="font-medium text-foreground">Frequência:</span>{" "}
+                {hardwareProfile.access.frequencyMHz.toFixed(2)} MHz
+              </p>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-4">
               <div className="space-y-2">
                 <Label>Dispositivo PORTARIA</Label>
                 <Select value={portariaId} onValueChange={setPortariaId}>
@@ -548,6 +633,15 @@ export function HardwareSimulator({
                 ) : (
                   <Input disabled value="" placeholder="Cadastre pelo menos um aluno" />
                 )}
+              </div>
+
+              <div className="space-y-2">
+                <Label>UID RFID (PN532)</Label>
+                <Input
+                  value={cardUid}
+                  onChange={(event) => setCardUid(event.target.value.toUpperCase())}
+                  placeholder="04A1B2C3"
+                />
               </div>
 
               <div className="space-y-2">
@@ -630,11 +724,28 @@ export function HardwareSimulator({
           <CardHeader>
             <CardTitle>Simular Sensor de Sala (Temp/Umid)</CardTitle>
             <CardDescription>
-              Envie leituras unitárias ou gere automaticamente um lote para demonstração.
+              Simula ESP32 + sensor I²C SHT31/SHT35 enviando POST para{" "}
+              <code>{hardwareProfile.telemetry.endpoint}</code>.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-2 rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground md:grid-cols-4">
+              <p>
+                <span className="font-medium text-foreground">Transporte:</span> {hardwareProfile.transport}
+              </p>
+              <p>
+                <span className="font-medium text-foreground">Conectividade:</span>{" "}
+                {hardwareProfile.esp32.connectivity}
+              </p>
+              <p>
+                <span className="font-medium text-foreground">Sensor:</span> {sensorModel}
+              </p>
+              <p>
+                <span className="font-medium text-foreground">I²C:</span> {i2cAddress}
+              </p>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
               <div className="space-y-2">
                 <Label>Sala</Label>
                 <Select value={roomId} onValueChange={setRoomId}>
@@ -665,6 +776,34 @@ export function HardwareSimulator({
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Modelo do sensor</Label>
+                <Select
+                  value={sensorModel}
+                  onValueChange={(value) => setSensorModel(value as "SHT31" | "SHT35")}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {hardwareProfile.telemetry.supportedSensorModels.map((model) => (
+                      <SelectItem key={model} value={model}>
+                        {model}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Endereço I²C</Label>
+                <Input
+                  value={i2cAddress}
+                  onChange={(event) => setI2cAddress(normalizeI2cInput(event.target.value))}
+                  placeholder="0x44"
+                />
               </div>
 
               <div className="space-y-2">

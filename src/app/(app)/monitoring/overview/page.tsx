@@ -30,6 +30,22 @@ function accessResultLabel(result: AccessResult) {
   return result === "ALLOW" ? "Permitido" : "Negado";
 }
 
+function eventCardUid(metadata: unknown) {
+  if (!metadata || typeof metadata !== "object") return "-";
+  const value = (metadata as Record<string, unknown>).cardUid;
+  return typeof value === "string" && value.length > 0 ? value : "-";
+}
+
+function telemetrySensor(metadata: unknown) {
+  if (!metadata || typeof metadata !== "object") return "-";
+  const meta = metadata as Record<string, unknown>;
+  const sensorModel = typeof meta.sensorModel === "string" ? meta.sensorModel : null;
+  const i2cAddress = typeof meta.i2cAddress === "string" ? meta.i2cAddress : null;
+  if (!sensorModel && !i2cAddress) return "-";
+  if (sensorModel && i2cAddress) return `${sensorModel} (${i2cAddress})`;
+  return sensorModel ?? i2cAddress ?? "-";
+}
+
 export default async function MonitoringOverviewPage() {
   await requirePermission(MONITORING_PERMISSIONS.VIEW);
 
@@ -61,6 +77,7 @@ export default async function MonitoringOverviewPage() {
         return {
           roomId: room.id,
           roomName: room.name,
+          sensor: null,
           temperature: null,
           humidity: null,
           measuredAt: null,
@@ -73,6 +90,7 @@ export default async function MonitoringOverviewPage() {
       return {
         roomId: room.id,
         roomName: room.name,
+        sensor: telemetrySensor(reading.metadata),
         temperature,
         humidity,
         measuredAt: reading.measuredAt,
@@ -98,7 +116,7 @@ export default async function MonitoringOverviewPage() {
       <div>
         <h1 className="text-2xl font-semibold">Monitoramento • Visão Geral</h1>
         <p className="text-sm text-muted-foreground">
-          Panorama de salas, leituras de temperatura/umidade e últimos eventos RFID.
+          Panorama ESP32/Wi-Fi com leituras SHT31/SHT35 e últimos eventos RFID (PN532).
         </p>
       </div>
 
@@ -152,6 +170,7 @@ export default async function MonitoringOverviewPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Sala</TableHead>
+                  <TableHead>Sensor I²C</TableHead>
                   <TableHead>Temperatura</TableHead>
                   <TableHead>Umidade</TableHead>
                   <TableHead>Status</TableHead>
@@ -163,6 +182,7 @@ export default async function MonitoringOverviewPage() {
                   latestByRoom.map((row) => (
                     <TableRow key={row.roomId}>
                       <TableCell>{row.roomName}</TableCell>
+                      <TableCell>{row.sensor ?? "-"}</TableCell>
                       <TableCell>
                         {row.temperature === null ? "-" : `${formatDecimal(row.temperature, true)} °C`}
                       </TableCell>
@@ -185,7 +205,7 @@ export default async function MonitoringOverviewPage() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center text-muted-foreground">
+                    <TableCell colSpan={6} className="text-center text-muted-foreground">
                       Nenhuma sala ativa encontrada.
                     </TableCell>
                   </TableRow>
@@ -207,6 +227,7 @@ export default async function MonitoringOverviewPage() {
                 <TableRow>
                   <TableHead>Data/Hora</TableHead>
                   <TableHead>Dispositivo</TableHead>
+                  <TableHead>UID RFID</TableHead>
                   <TableHead>Aluno</TableHead>
                   <TableHead>Resultado</TableHead>
                   <TableHead>Motivo</TableHead>
@@ -220,6 +241,7 @@ export default async function MonitoringOverviewPage() {
                         {formatDate(event.occurredAt)} {formatTime(event.occurredAt)}
                       </TableCell>
                       <TableCell>{event.device.name}</TableCell>
+                      <TableCell>{eventCardUid(event.metadata)}</TableCell>
                       <TableCell>{studentNameById.get(event.studentId) ?? `#${event.studentId}`}</TableCell>
                       <TableCell>
                         <Badge variant={event.result === "ALLOW" ? "default" : "secondary"}>
@@ -231,7 +253,7 @@ export default async function MonitoringOverviewPage() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center text-muted-foreground">
+                    <TableCell colSpan={6} className="text-center text-muted-foreground">
                       Nenhum evento registrado.
                     </TableCell>
                   </TableRow>

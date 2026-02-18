@@ -8,6 +8,9 @@ import {
   ensureMonitoringSettings,
   generateDeviceToken,
   MONITORING_PERMISSIONS,
+  RFID_READER_MODELS,
+  resolveMonitoringHardwareProfile,
+  SENSOR_MODELS,
   processAccessEvent,
   processTelemetryReading,
   toIsoDateOrNow,
@@ -28,6 +31,19 @@ const deviceSchema = z.object({
   isActive: z.boolean().optional(),
 });
 
+const hardwareProfileSchema = z.object({
+  telemetry: z.object({
+    sensorModel: z.enum(SENSOR_MODELS),
+    i2cAddress: z.string().regex(/^0[xX][0-9A-Fa-f]{2}$/, "Endereço I²C inválido (use 0x44/0x45)."),
+    endpoint: z.string().min(1, "Informe o endpoint REST de telemetria."),
+  }),
+  access: z.object({
+    readerModel: z.enum(RFID_READER_MODELS),
+    frequencyMHz: z.coerce.number().positive("Frequência RFID deve ser positiva."),
+    endpoint: z.string().min(1, "Informe o endpoint REST de acesso."),
+  }),
+});
+
 const monitoringSettingsSchema = z
   .object({
     tempMin: z.coerce.number(),
@@ -37,6 +53,7 @@ const monitoringSettingsSchema = z
     telemetryIntervalSeconds: z.coerce.number().int().positive(),
     unlockDurationSeconds: z.coerce.number().int().positive(),
     allowOnlyActiveStudents: z.boolean(),
+    hardwareProfile: hardwareProfileSchema,
   })
   .refine((value) => value.tempMin < value.tempMax, {
     message: "Temp. mínima deve ser menor que máxima.",
@@ -50,6 +67,11 @@ const monitoringSettingsSchema = z
 const simulateAccessSchema = z.object({
   deviceId: z.number().int().positive("Selecione a portaria"),
   studentId: z.number().int().positive("Informe o ID do aluno"),
+  cardUid: z
+    .string()
+    .trim()
+    .regex(/^[0-9A-Fa-f]{4,32}$/, "UID RFID inválido.")
+    .optional(),
   occurredAt: z.string().optional(),
   source: z.enum(["manual", "auto"]).optional(),
 });
@@ -59,6 +81,12 @@ const simulateTelemetrySchema = z.object({
   deviceId: z.number().int().positive("Selecione o dispositivo"),
   temperature: z.number(),
   humidity: z.number(),
+  sensorModel: z.enum(SENSOR_MODELS).optional(),
+  i2cAddress: z
+    .string()
+    .trim()
+    .regex(/^0[xX][0-9A-Fa-f]{2}$/, "Endereço I²C inválido.")
+    .optional(),
   measuredAt: z.string().optional(),
 });
 
@@ -266,9 +294,34 @@ export async function saveMonitoringSettings(data: z.infer<typeof monitoringSett
 
   try {
     const current = await ensureMonitoringSettings();
+    const normalizedHardwareProfile = resolveMonitoringHardwareProfile({
+      transport: "HTTP_REST",
+      esp32: { connectivity: "WIFI" },
+      telemetry: {
+        sensorModel: parsed.data.hardwareProfile.telemetry.sensorModel,
+        supportedSensorModels: [...SENSOR_MODELS],
+        i2cAddress: parsed.data.hardwareProfile.telemetry.i2cAddress,
+        endpoint: parsed.data.hardwareProfile.telemetry.endpoint,
+      },
+      access: {
+        readerModel: parsed.data.hardwareProfile.access.readerModel,
+        frequencyMHz: parsed.data.hardwareProfile.access.frequencyMHz,
+        endpoint: parsed.data.hardwareProfile.access.endpoint,
+      },
+    });
+
     await prisma.monitoringSettings.update({
       where: { id: current.id },
-      data: parsed.data,
+      data: {
+        tempMin: parsed.data.tempMin,
+        tempMax: parsed.data.tempMax,
+        humMin: parsed.data.humMin,
+        humMax: parsed.data.humMax,
+        telemetryIntervalSeconds: parsed.data.telemetryIntervalSeconds,
+        unlockDurationSeconds: parsed.data.unlockDurationSeconds,
+        allowOnlyActiveStudents: parsed.data.allowOnlyActiveStudents,
+        hardwareProfile: normalizedHardwareProfile,
+      },
     });
     revalidateMonitoringAdminPages();
     return { success: true };
@@ -328,10 +381,20 @@ export async function simulateRfidAccess(data: z.infer<typeof simulateAccessSche
     return { error: "Data/hora inválida." };
   }
 
+  const settings = await ensureMonitoringSettings();
+  const hardwareProfile = resolveMonitoringHardwareProfile(settings.hardwareProfile);
+
   const result = await processAccessEvent({
     device,
     studentId: parsed.data.studentId,
     occurredAt,
+    metadata: {
+      cardUid: parsed.data.cardUid?.toUpperCase(),
+      readerModel: hardwareProfile.access.readerModel,
+      frequencyMHz: hardwareProfile.access.frequencyMHz,
+      transport: hardwareProfile.transport,
+      connectivity: hardwareProfile.esp32.connectivity,
+    },
   });
 
   revalidateMonitoringViews();
@@ -368,6 +431,9 @@ export async function simulateTelemetry(data: z.infer<typeof simulateTelemetrySc
   const device = await prisma.device.findUnique({ where: { id: parsed.data.deviceId } });
   if (!device) return { error: "Dispositivo não encontrado." };
 
+  const settings = await ensureMonitoringSettings();
+  const hardwareProfile = resolveMonitoringHardwareProfile(settings.hardwareProfile);
+
   let measuredAt: Date;
   try {
     measuredAt = toIsoDateOrNow(parsed.data.measuredAt);
@@ -381,6 +447,12 @@ export async function simulateTelemetry(data: z.infer<typeof simulateTelemetrySc
     temperature: parsed.data.temperature,
     humidity: parsed.data.humidity,
     measuredAt,
+    metadata: {
+      sensorModel: parsed.data.sensorModel ?? hardwareProfile.telemetry.sensorModel,
+      i2cAddress: parsed.data.i2cAddress ?? hardwareProfile.telemetry.i2cAddress,
+      transport: hardwareProfile.transport,
+      connectivity: hardwareProfile.esp32.connectivity,
+    },
   });
 
   if (!result.ok) {
@@ -413,6 +485,9 @@ export async function generateTelemetryBatch(data: z.infer<typeof generateTeleme
   const device = await prisma.device.findUnique({ where: { id: parsed.data.deviceId } });
   if (!device) return { error: "Dispositivo não encontrado." };
 
+  const settings = await ensureMonitoringSettings();
+  const hardwareProfile = resolveMonitoringHardwareProfile(settings.hardwareProfile);
+
   const now = Date.now();
   for (let idx = 0; idx < parsed.data.quantity; idx += 1) {
     const jitterTemp = (Math.random() * 2 - 1) * parsed.data.variation;
@@ -427,6 +502,12 @@ export async function generateTelemetryBatch(data: z.infer<typeof generateTeleme
       temperature: parsed.data.baseTemperature + jitterTemp,
       humidity: parsed.data.baseHumidity + jitterHum,
       measuredAt,
+      metadata: {
+        sensorModel: hardwareProfile.telemetry.sensorModel,
+        i2cAddress: hardwareProfile.telemetry.i2cAddress,
+        transport: hardwareProfile.transport,
+        connectivity: hardwareProfile.esp32.connectivity,
+      },
     });
 
     if (!result.ok) {

@@ -7,6 +7,12 @@ import {
   MONITORING_PERMISSIONS,
 } from "@/lib/monitoring";
 
+function metadataValue(metadata: unknown, key: string) {
+  if (!metadata || typeof metadata !== "object") return undefined;
+  const value = (metadata as Record<string, unknown>)[key];
+  return typeof value === "string" ? value : undefined;
+}
+
 function parseDate(value: string | null) {
   if (!value) return null;
   const date = new Date(value);
@@ -79,12 +85,17 @@ export async function GET(request: Request) {
   const items = readings.map((reading) => {
     const temperature = Number(reading.temperature);
     const humidity = Number(reading.humidity);
+    const sensorModel = metadataValue(reading.metadata, "sensorModel");
+    const i2cAddress = metadataValue(reading.metadata, "i2cAddress");
     return {
       id: reading.id,
       room: reading.room,
       device: reading.device,
       temperature,
       humidity,
+      sensor_model: sensorModel ?? null,
+      i2c_address: i2cAddress ?? null,
+      metadata: reading.metadata ?? null,
       measured_at: reading.measuredAt,
       created_at: reading.createdAt,
       status: evaluateReadingStatus(temperature, humidity, settings),
