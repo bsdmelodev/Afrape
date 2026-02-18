@@ -53,6 +53,22 @@ const permissionDefinitions = [
   { code: "school.write", description: "Criar/editar dados da escola" },
   { code: "settings.read", description: "Visualizar configurações" },
   { code: "settings.write", description: "Executar ações administrativas em configurações" },
+  {
+    code: "MONITORING_VIEW",
+    description: "Visualizar dashboards, leituras e eventos de monitoramento",
+  },
+  {
+    code: "MONITORING_MANAGE",
+    description: "Gerenciar salas, portarias e dispositivos de monitoramento",
+  },
+  {
+    code: "ADMIN_MONITORING_SETTINGS",
+    description: "Alterar configurações administrativas do monitoramento",
+  },
+  {
+    code: "ADMIN_HARDWARE_SIMULATOR",
+    description: "Acessar simulador de hardware de monitoramento",
+  },
 ];
 
 const permissionCodes = permissionDefinitions.map((p) => p.code);
@@ -114,6 +130,67 @@ async function main() {
     where: { id: 1 },
     update: { name: "Escola Modelo" },
     create: { name: "Escola Modelo" },
+  });
+
+  const monitoringDefaults = {
+    tempMin: "20.00",
+    tempMax: "28.00",
+    humMin: "40.00",
+    humMax: "70.00",
+    telemetryIntervalSeconds: 60,
+    unlockDurationSeconds: 5,
+    allowOnlyActiveStudents: true,
+  };
+
+  const currentSettings = await prisma.monitoringSettings.findFirst({ select: { id: true } });
+  if (currentSettings) {
+    await prisma.monitoringSettings.update({
+      where: { id: currentSettings.id },
+      data: monitoringDefaults,
+    });
+  } else {
+    await prisma.monitoringSettings.create({ data: monitoringDefaults });
+  }
+
+  let sampleRoom = await prisma.room.findFirst({ where: { name: "Sala 101" } });
+  if (!sampleRoom) {
+    sampleRoom = await prisma.room.create({
+      data: { name: "Sala 101", location: "Bloco A", isActive: true },
+    });
+  }
+
+  await prisma.device.upsert({
+    where: { token: "dev-sala-101-token" },
+    update: {
+      name: "Sensor Sala 101",
+      type: "SALA",
+      roomId: sampleRoom.id,
+      isActive: true,
+    },
+    create: {
+      name: "Sensor Sala 101",
+      type: "SALA",
+      roomId: sampleRoom.id,
+      isActive: true,
+      token: "dev-sala-101-token",
+    },
+  });
+
+  await prisma.device.upsert({
+    where: { token: "dev-portaria-principal-token" },
+    update: {
+      name: "Portaria Principal",
+      type: "PORTARIA",
+      roomId: null,
+      isActive: true,
+    },
+    create: {
+      name: "Portaria Principal",
+      type: "PORTARIA",
+      roomId: null,
+      isActive: true,
+      token: "dev-portaria-principal-token",
+    },
   });
 
   const permissions = await Promise.all(

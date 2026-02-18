@@ -69,12 +69,59 @@ const navSections: { title: string; items: NavEntry[] }[] = [
     ],
   },
   {
+    title: "Monitoramento",
+    items: [
+      {
+        label: "Visão Geral",
+        href: "/monitoramento/visao-geral",
+        icon: "monitoring_overview",
+        permission: "MONITORING_VIEW",
+      },
+      {
+        label: "Salas",
+        href: "/monitoramento/salas",
+        icon: "monitoring_rooms",
+        permission: "MONITORING_VIEW",
+      },
+      {
+        label: "Portarias",
+        href: "/monitoramento/portarias",
+        icon: "monitoring_gateways",
+        permission: "MONITORING_VIEW",
+      },
+      {
+        label: "Eventos de Acesso (RFID)",
+        href: "/monitoramento/eventos-acesso",
+        icon: "monitoring_events",
+        permission: "MONITORING_VIEW",
+      },
+      {
+        label: "Leituras (Temp/Umid)",
+        href: "/monitoramento/leituras",
+        icon: "monitoring_readings",
+        permission: "MONITORING_VIEW",
+      },
+    ],
+  },
+  {
     title: "Administração",
     items: [
       { label: "Usuários", href: "/users", icon: "users", permission: "users.read" },
       { label: "Grupos", href: "/groups", icon: "groups", permission: "groups.read" },
       { label: "Permissões", href: "/permissions", icon: "permissions", permission: "permissions.read" },
       { label: "Configurações", href: "/settings", icon: "permissions", permission: "settings.read" },
+      {
+        label: "Config. Monitoramento",
+        href: "/settings/monitoramento",
+        icon: "monitoring_settings",
+        permission: "ADMIN_MONITORING_SETTINGS",
+      },
+      {
+        label: "Simulador de Hardware",
+        href: "/settings/simulador-hardware",
+        icon: "hardware_simulator",
+        permission: "ADMIN_HARDWARE_SIMULATOR",
+      },
       { label: "Escola", href: "/school", icon: "permissions", permission: "school.read" },
     ],
   },

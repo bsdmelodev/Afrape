@@ -7,6 +7,19 @@
 -- =========================================================
 
 -- =========================
+-- ENUMS IOT / MONITORAMENTO
+-- =========================
+do $$
+begin
+  if not exists (select 1 from pg_type where typname = 'DeviceType') then
+    create type "DeviceType" as enum ('PORTARIA', 'SALA');
+  end if;
+  if not exists (select 1 from pg_type where typname = 'AccessResult') then
+    create type "AccessResult" as enum ('ALLOW', 'DENY');
+  end if;
+end $$;
+
+-- =========================
 -- GRUPOS (ROLES)
 -- =========================
 create table user_groups (
@@ -448,6 +461,101 @@ create table if not exists school (
 );
 
 -- =========================
+-- MONITORAMENTO - SALAS
+-- =========================
+create table rooms (
+  id int generated always as identity primary key,
+  name varchar(120) not null,
+  location varchar(180),
+  is_active boolean not null default true,
+  created_at timestamp not null default now(),
+  updated_at timestamp not null default now()
+);
+
+create index ix_rooms_name on rooms(name);
+
+-- =========================
+-- MONITORAMENTO - DISPOSITIVOS
+-- =========================
+create table devices (
+  id int generated always as identity primary key,
+  name varchar(120) not null,
+  type "DeviceType" not null,
+  room_id int null,
+  is_active boolean not null default true,
+  token varchar(120) not null unique,
+  created_at timestamp not null default now(),
+  updated_at timestamp not null default now(),
+  constraint fk_devices_room
+    foreign key (room_id) references rooms(id)
+    on delete set null
+);
+
+create index ix_devices_type on devices(type);
+create index ix_devices_room_id on devices(room_id);
+
+-- =========================
+-- MONITORAMENTO - EVENTOS RFID
+-- =========================
+create table access_events (
+  id int generated always as identity primary key,
+  device_id int not null,
+  student_id int not null,
+  result "AccessResult" not null,
+  reason varchar(50) not null,
+  occurred_at timestamp not null,
+  created_at timestamp not null default now(),
+  constraint fk_access_events_device
+    foreign key (device_id) references devices(id)
+    on delete restrict
+);
+
+create index ix_access_events_device_occurred on access_events(device_id, occurred_at);
+create index ix_access_events_student_occurred on access_events(student_id, occurred_at);
+
+-- =========================
+-- MONITORAMENTO - TELEMETRIA
+-- =========================
+create table telemetry_readings (
+  id int generated always as identity primary key,
+  device_id int not null,
+  room_id int not null,
+  temperature numeric(5,2) not null,
+  humidity numeric(5,2) not null,
+  measured_at timestamp not null,
+  created_at timestamp not null default now(),
+  constraint fk_telemetry_readings_device
+    foreign key (device_id) references devices(id)
+    on delete restrict,
+  constraint fk_telemetry_readings_room
+    foreign key (room_id) references rooms(id)
+    on delete restrict
+);
+
+create index ix_telemetry_readings_room_measured on telemetry_readings(room_id, measured_at);
+create index ix_telemetry_readings_device_measured on telemetry_readings(device_id, measured_at);
+
+-- =========================
+-- MONITORAMENTO - CONFIGURAÇÕES (SINGLETON)
+-- =========================
+create table monitoring_settings (
+  id int generated always as identity primary key,
+  temp_min numeric(5,2) not null,
+  temp_max numeric(5,2) not null,
+  hum_min numeric(5,2) not null,
+  hum_max numeric(5,2) not null,
+  telemetry_interval_seconds int not null,
+  unlock_duration_seconds int not null,
+  allow_only_active_students boolean not null default true,
+  created_at timestamp not null default now(),
+  updated_at timestamp not null default now(),
+  constraint ck_monitoring_settings_ranges
+    check (temp_min < temp_max and hum_min < hum_max),
+  constraint ck_monitoring_settings_intervals
+    check (telemetry_interval_seconds > 0 and unlock_duration_seconds > 0)
+);
+
+-- =========================
 -- SEEDS PADRÃO (permissões, grupos, vínculos, admin e escola modelo)
 -- =========================
 insert into permissions (code, description) values
@@ -484,7 +592,11 @@ insert into permissions (code, description) values
   ('school.read', 'Visualizar dados da escola'),
   ('school.write', 'Criar/editar dados da escola'),
   ('settings.read', 'Visualizar configurações'),
-  ('settings.write', 'Executar ações administrativas em configurações')
+  ('settings.write', 'Executar ações administrativas em configurações'),
+  ('MONITORING_VIEW', 'Visualizar dashboards, leituras e eventos de monitoramento'),
+  ('MONITORING_MANAGE', 'Gerenciar salas, portarias e dispositivos de monitoramento'),
+  ('ADMIN_MONITORING_SETTINGS', 'Alterar configurações administrativas do monitoramento'),
+  ('ADMIN_HARDWARE_SIMULATOR', 'Acessar simulador de hardware de monitoramento')
 on conflict (code) do update set description = excluded.description;
 
 insert into user_groups (name, description) values
@@ -551,3 +663,40 @@ where not exists (select 1 from users where email = 'bruno@rocketup.com.br');
 insert into school (name)
 select 'Escola Modelo'
 where not exists (select 1 from school);
+
+insert into monitoring_settings (
+  temp_min,
+  temp_max,
+  hum_min,
+  hum_max,
+  telemetry_interval_seconds,
+  unlock_duration_seconds,
+  allow_only_active_students
+)
+select 20, 28, 40, 70, 60, 5, true
+where not exists (select 1 from monitoring_settings);
+
+with room_seed as (
+  insert into rooms (name, location, is_active)
+  select 'Sala 101', 'Bloco A', true
+  where not exists (select 1 from rooms where name = 'Sala 101')
+  returning id
+), room_resolved as (
+  select id from room_seed
+  union all
+  select id from rooms where name = 'Sala 101'
+  limit 1
+)
+insert into devices (name, type, room_id, is_active, token)
+select
+  'Sensor Sala 101',
+  'SALA'::"DeviceType",
+  room_resolved.id,
+  true,
+  'dev-sala-101-token'
+from room_resolved
+where not exists (select 1 from devices where token = 'dev-sala-101-token');
+
+insert into devices (name, type, room_id, is_active, token)
+select 'Portaria Principal', 'PORTARIA'::"DeviceType", null, true, 'dev-portaria-principal-token'
+where not exists (select 1 from devices where token = 'dev-portaria-principal-token');

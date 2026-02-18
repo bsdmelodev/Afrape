@@ -97,6 +97,22 @@ const permissionDefinitions = [
   { code: "school.write", description: "Criar/editar dados da escola" },
   { code: "settings.read", description: "Visualizar configurações" },
   { code: "settings.write", description: "Executar ações administrativas em configurações" },
+  {
+    code: "MONITORING_VIEW",
+    description: "Visualizar dashboards, leituras e eventos de monitoramento",
+  },
+  {
+    code: "MONITORING_MANAGE",
+    description: "Gerenciar salas, portarias e dispositivos de monitoramento",
+  },
+  {
+    code: "ADMIN_MONITORING_SETTINGS",
+    description: "Alterar configurações administrativas do monitoramento",
+  },
+  {
+    code: "ADMIN_HARDWARE_SIMULATOR",
+    description: "Acessar simulador de hardware de monitoramento",
+  },
 ];
 
 const adminPermissions = permissionDefinitions
@@ -189,6 +205,67 @@ export async function populateDemoData() {
   } catch (err) {
     console.warn("Tabela school indisponível para popular", err);
   }
+
+  // 2.1) Monitoramento (singleton + sala/device de exemplo)
+  const monitoringDefaults = {
+    tempMin: "20.00",
+    tempMax: "28.00",
+    humMin: "40.00",
+    humMax: "70.00",
+    telemetryIntervalSeconds: 60,
+    unlockDurationSeconds: 5,
+    allowOnlyActiveStudents: true,
+  };
+  const currentSettings = await prisma.monitoringSettings.findFirst({ select: { id: true } });
+  if (currentSettings) {
+    await prisma.monitoringSettings.update({
+      where: { id: currentSettings.id },
+      data: monitoringDefaults,
+    });
+  } else {
+    await prisma.monitoringSettings.create({ data: monitoringDefaults });
+  }
+
+  let sampleRoom = await prisma.room.findFirst({ where: { name: "Sala 101" } });
+  if (!sampleRoom) {
+    sampleRoom = await prisma.room.create({
+      data: { name: "Sala 101", location: "Bloco A", isActive: true },
+    });
+  }
+
+  await prisma.device.upsert({
+    where: { token: "dev-sala-101-token" },
+    update: {
+      name: "Sensor Sala 101",
+      type: "SALA",
+      roomId: sampleRoom.id,
+      isActive: true,
+    },
+    create: {
+      name: "Sensor Sala 101",
+      type: "SALA",
+      roomId: sampleRoom.id,
+      isActive: true,
+      token: "dev-sala-101-token",
+    },
+  });
+
+  await prisma.device.upsert({
+    where: { token: "dev-portaria-principal-token" },
+    update: {
+      name: "Portaria Principal",
+      type: "PORTARIA",
+      roomId: null,
+      isActive: true,
+    },
+    create: {
+      name: "Portaria Principal",
+      type: "PORTARIA",
+      roomId: null,
+      isActive: true,
+      token: "dev-portaria-principal-token",
+    },
+  });
 
   // 3) Usuários secretaria (2) e professor (5)
   const userPayloads = [
@@ -647,6 +724,11 @@ export async function resetDatabase() {
   };
 
   const orderedTables = [
+    "access_events",
+    "telemetry_readings",
+    "devices",
+    "rooms",
+    "monitoring_settings",
     "attendance_records",
     "attendance_sessions",
     "assessment_scores",
@@ -684,6 +766,55 @@ export async function resetDatabase() {
       await prisma.school.create({ data: { name: "Escola Modelo" } });
     } catch (err) {
       console.warn("Não foi possível criar registro default em school (tabela divergente?)", err);
+    }
+  }
+
+  if (await tableExists("monitoring_settings")) {
+    try {
+      await prisma.monitoringSettings.create({
+        data: {
+          tempMin: "20.00",
+          tempMax: "28.00",
+          humMin: "40.00",
+          humMax: "70.00",
+          telemetryIntervalSeconds: 60,
+          unlockDurationSeconds: 5,
+          allowOnlyActiveStudents: true,
+        },
+      });
+    } catch (err) {
+      console.warn("Não foi possível criar monitoramento default", err);
+    }
+  }
+
+  if (await tableExists("rooms")) {
+    try {
+      const sampleRoom = await prisma.room.create({
+        data: { name: "Sala 101", location: "Bloco A", isActive: true },
+      });
+
+      if (await tableExists("devices")) {
+        await prisma.device.create({
+          data: {
+            name: "Sensor Sala 101",
+            type: "SALA",
+            roomId: sampleRoom.id,
+            isActive: true,
+            token: "dev-sala-101-token",
+          },
+        });
+        await prisma.device.create({
+          data: {
+            name: "Portaria Principal",
+            type: "PORTARIA",
+            roomId: null,
+            isActive: true,
+            token: "dev-portaria-principal-token",
+          },
+        });
+      }
+    } catch (err) {
+      console.warn("Não foi possível criar seed inicial de monitoramento", err);
     }
   }
 

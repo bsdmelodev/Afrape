@@ -3,18 +3,25 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  Activity,
   BookOpen,
+  Building2,
   CalendarCheck,
   CalendarRange,
   ClipboardList,
   Columns3,
+  Cpu,
+  DoorOpen,
   GraduationCap,
   KeyRound,
   LayoutDashboard,
   Layers3,
   Medal,
   NotebookPen,
+  ScanLine,
   ShieldCheck,
+  SlidersHorizontal,
+  Thermometer,
   Users,
   UsersRound,
   UserCog,
@@ -44,7 +51,14 @@ export type NavItem = {
     | "term_grades"
     | "users"
     | "groups"
-    | "permissions";
+    | "permissions"
+    | "monitoring_overview"
+    | "monitoring_rooms"
+    | "monitoring_gateways"
+    | "monitoring_events"
+    | "monitoring_readings"
+    | "monitoring_settings"
+    | "hardware_simulator";
 };
 
 export type NavSection = {
@@ -76,6 +90,13 @@ const iconMap: Record<NavItem["icon"], React.ComponentType<{ className?: string 
     users: UserCircle2,
     groups: UsersRound,
     permissions: KeyRound,
+    monitoring_overview: Activity,
+    monitoring_rooms: Building2,
+    monitoring_gateways: DoorOpen,
+    monitoring_events: ScanLine,
+    monitoring_readings: Thermometer,
+    monitoring_settings: SlidersHorizontal,
+    hardware_simulator: Cpu,
   };
 
 export function NavLinks({ sections, onNavigate, closeOnNavigate }: NavLinksProps) {

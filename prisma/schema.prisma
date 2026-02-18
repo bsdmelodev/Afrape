@@ -6,6 +6,16 @@ datasource db {
   provider = "postgresql"
 }
 
+enum DeviceType {
+  PORTARIA
+  SALA
+}
+
+enum AccessResult {
+  ALLOW
+  DENY
+}
+
 model UserGroup {
   id                Int                @id @default(autoincrement())
   name              String             @unique @db.VarChar(80)
@@ -341,4 +351,82 @@ model TermGrade {
   @@index([termId], map: "ix_term_grades_term")
   @@index([classSubjectId], map: "ix_term_grades_class_subject")
   @@map("term_grades")
+}
+
+model Room {
+  id                Int                @id @default(autoincrement())
+  name              String             @db.VarChar(120)
+  location          String?            @db.VarChar(180)
+  isActive          Boolean            @map("is_active") @default(true)
+  createdAt         DateTime           @map("created_at") @default(now()) @db.Timestamp(6)
+  updatedAt         DateTime           @map("updated_at") @default(now()) @db.Timestamp(6)
+  devices           Device[]
+  telemetryReadings TelemetryReading[]
+
+  @@index([name], map: "ix_rooms_name")
+  @@map("rooms")
+}
+
+model Device {
+  id                Int                @id @default(autoincrement())
+  name              String             @db.VarChar(120)
+  type              DeviceType
+  roomId            Int?               @map("room_id")
+  isActive          Boolean            @map("is_active") @default(true)
+  token             String             @unique @db.VarChar(120)
+  createdAt         DateTime           @map("created_at") @default(now()) @db.Timestamp(6)
+  updatedAt         DateTime           @map("updated_at") @default(now()) @db.Timestamp(6)
+  room              Room?              @relation(fields: [roomId], references: [id], onDelete: SetNull, map: "fk_devices_room")
+  accessEvents      AccessEvent[]
+  telemetryReadings TelemetryReading[]
+
+  @@index([type], map: "ix_devices_type")
+  @@index([roomId], map: "ix_devices_room_id")
+  @@map("devices")
+}
+
+model AccessEvent {
+  id         Int          @id @default(autoincrement())
+  deviceId   Int          @map("device_id")
+  studentId  Int          @map("student_id")
+  result     AccessResult
+  reason     String       @db.VarChar(50)
+  occurredAt DateTime     @map("occurred_at") @db.Timestamp(6)
+  createdAt  DateTime     @map("created_at") @default(now()) @db.Timestamp(6)
+  device     Device       @relation(fields: [deviceId], references: [id], onDelete: Restrict, map: "fk_access_events_device")
+
+  @@index([deviceId, occurredAt], map: "ix_access_events_device_occurred")
+  @@index([studentId, occurredAt], map: "ix_access_events_student_occurred")
+  @@map("access_events")
+}
+
+model TelemetryReading {
+  id         Int       @id @default(autoincrement())
+  deviceId   Int       @map("device_id")
+  roomId     Int       @map("room_id")
+  temperature Decimal  @db.Decimal(5, 2)
+  humidity   Decimal   @db.Decimal(5, 2)
+  measuredAt DateTime  @map("measured_at") @db.Timestamp(6)
+  createdAt  DateTime  @map("created_at") @default(now()) @db.Timestamp(6)
+  device     Device    @relation(fields: [deviceId], references: [id], onDelete: Restrict, map: "fk_telemetry_readings_device")
+  room       Room      @relation(fields: [roomId], references: [id], onDelete: Restrict, map: "fk_telemetry_readings_room")
+
+  @@index([roomId, measuredAt], map: "ix_telemetry_readings_room_measured")
+  @@index([deviceId, measuredAt], map: "ix_telemetry_readings_device_measured")
+  @@map("telemetry_readings")
+}
+
+model MonitoringSettings {
+  id                        Int       @id @default(autoincrement())
+  tempMin                   Decimal   @map("temp_min") @db.Decimal(5, 2)
+  tempMax                   Decimal   @map("temp_max") @db.Decimal(5, 2)
+  humMin                    Decimal   @map("hum_min") @db.Decimal(5, 2)
+  humMax                    Decimal   @map("hum_max") @db.Decimal(5, 2)
+  telemetryIntervalSeconds  Int       @map("telemetry_interval_seconds")
+  unlockDurationSeconds     Int       @map("unlock_duration_seconds")
+  allowOnlyActiveStudents   Boolean   @map("allow_only_active_students") @default(true)
+  createdAt                 DateTime  @map("created_at") @default(now()) @db.Timestamp(6)
+  updatedAt                 DateTime  @map("updated_at") @default(now()) @db.Timestamp(6)
+
+  @@map("monitoring_settings")
 }

@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ShieldCheck, UserCircle2 } from "lucide-react";
+import Link from "next/link";
 import { requirePermission } from "@/lib/rbac";
 import { DataActions } from "./components/data-actions";
 
@@ -10,6 +11,8 @@ export default async function SettingsPage() {
 
   const permissions = user.permissions ?? [];
   const canWrite = permissions.includes("settings.write");
+  const canMonitoringSettings = permissions.includes("ADMIN_MONITORING_SETTINGS");
+  const canSimulator = permissions.includes("ADMIN_HARDWARE_SIMULATOR");
 
   return (
     <div className="space-y-6">
@@ -63,6 +66,32 @@ export default async function SettingsPage() {
               matrículas, componentes, períodos, sessões e notas).
             </p>
             <DataActions />
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {canMonitoringSettings || canSimulator ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Administração de Monitoramento</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-wrap gap-3">
+            {canMonitoringSettings ? (
+              <Link
+                href="/settings/monitoramento"
+                className="rounded-md border px-3 py-2 text-sm font-medium hover:bg-muted"
+              >
+                Configurações -&gt; Monitoramento
+              </Link>
+            ) : null}
+            {canSimulator ? (
+              <Link
+                href="/settings/simulador-hardware"
+                className="rounded-md border px-3 py-2 text-sm font-medium hover:bg-muted"
+              >
+                Simulação -&gt; Simulador de Hardware
+              </Link>
+            ) : null}
           </CardContent>
         </Card>
       ) : null}
