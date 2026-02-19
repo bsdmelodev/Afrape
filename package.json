@@ -4,10 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "next dev",
+    "prisma:generate": "prisma generate",
+    "dev": "npm run prisma:generate && next dev",
     "build": "next build",
     "start": "next start",
-    "seed": "tsx prisma/seed.ts",
+    "seed": "npm run prisma:generate && tsx prisma/seed.ts",
     "lint": "eslint"
   },
   "dependencies": {
