@@ -131,7 +131,7 @@
         <ul>
           <li><code>DATABASE_URL</code>: string de conexão (pooler Neon)</li>
           <li><code>AUTH_SECRET</code>: chave longa para assinar JWT</li>
-          <li><code>SEED_ADMIN_EMAIL</code>, <code>SEED_ADMIN_PASSWORD</code>, <code>SEED_ADMIN_NAME</code></li>
+          <li><code>SEED_MASTER_EMAIL</code>, <code>SEED_MASTER_PASSWORD</code>, <code>SEED_MASTER_NAME</code></li>
           <li><code>DIRECT_URL</code> (opcional, sem pooler)</li>
         </ul>
       </div>
@@ -145,10 +145,10 @@ DO $$ DECLARE r RECORD; BEGIN FOR r IN (SELECT tablename FROM pg_tables WHERE sc
 SQL</code></div></div>
           <div class="step"><div class="step-num">3</div><div>Aplicar schema: <code>npx prisma db execute --file prisma/sql/init.sql</code></div></div>
           <div class="step"><div class="step-num">4</div><div>Gerar client: <code>npx prisma generate</code></div></div>
-          <div class="step"><div class="step-num">5</div><div>Seed (grupos/permissions/admin): <code>node prisma/seed.ts</code></div></div>
+          <div class="step"><div class="step-num">5</div><div>Seed (grupos/permissões/master): <code>node prisma/seed.ts</code></div></div>
           <div class="step"><div class="step-num">6</div><div>Dev server: <code>npm run dev</code></div></div>
         </div>
-        <p>Login padrão (seed): admin e senha definidos em <code>SEED_ADMIN_*</code>.</p>
+        <p>Login padrão (seed): master e senha definidos em <code>SEED_MASTER_*</code>.</p>
       </div>
 
       <div class="section">
@@ -156,7 +156,7 @@ SQL</code></div></div>
         <ul>
           <li>Aplicar SQL canônico: <code>prisma/sql/init.sql</code></li>
           <li><code>npx prisma generate</code></li>
-          <li>Rodar seed se precisar criar permissões/grupos/admin</li>
+          <li>Rodar seed se precisar criar permissões/grupos/master</li>
           <li><code>npm run build</code> e <code>npm run start</code></li>
           <li>Garantir escrita em <code>public/uploads</code> ou configurar storage nas rotas de upload</li>
         </ul>
@@ -196,7 +196,7 @@ SQL</code></div></div>
         <h2>RBAC</h2>
         <ul>
           <li>Permissões em <code>permissions</code>, grupos em <code>user_groups</code>, vínculos em <code>group_permissions</code></li>
-          <li>Admin: todas; Secretaria: cadastros principais; Professor: leituras + frequência/avaliações</li>
+          <li>Master: todas; Admin: todas exceto Configurações; Secretaria: cadastros principais; Professor: leituras + frequência/avaliações</li>
           <li>Enforcement: server actions/rotas e visibilidade de menu/botões</li>
         </ul>
       </div>

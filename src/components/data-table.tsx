@@ -122,16 +122,22 @@ export function DataTable<TData>({
                     </div>
                   )}
                   <div className="space-y-3">
-                    {infoCells.map((cell) => (
-                      <div key={cell.id} className="flex flex-col gap-1 text-sm break-words">
-                        <span className="font-semibold text-foreground">
-                          {flexRender(cell.column.columnDef.header, cell.getContext() as any)}
-                        </span>
-                        <div className="text-muted-foreground">
-                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    {infoCells.map((cell) => {
+                      const header = cell.column.columnDef.header;
+                      const headerLabel =
+                        typeof header === "string" && header.trim().length > 0
+                          ? header
+                          : cell.column.id;
+
+                      return (
+                        <div key={cell.id} className="flex flex-col gap-1 text-sm break-words">
+                          <span className="font-semibold text-foreground">{headerLabel}</span>
+                          <div className="text-muted-foreground">
+                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               );

@@ -89,31 +89,10 @@ async function seedGroups(permissionMap: Map<string, number>) {
 }
 
 async function seedDefaultUsers(config: SeedIdentityConfig) {
-  const [adminGroup, masterGroup, adminPasswordHash, masterPasswordHash] = await Promise.all([
-    prisma.userGroup.findUniqueOrThrow({ where: { name: "Admin" } }),
+  const [masterGroup, masterPasswordHash] = await Promise.all([
     prisma.userGroup.findUniqueOrThrow({ where: { name: "Master" } }),
-    bcrypt.hash(config.adminPassword, 10),
     bcrypt.hash(config.masterPassword, 10),
   ]);
-
-  await prisma.user.upsert({
-    where: { email: config.adminEmail },
-    update: {
-      name: config.adminName,
-      groupId: adminGroup.id,
-      cpf: config.adminCpf,
-      passwordHash: adminPasswordHash,
-      isActive: true,
-    },
-    create: {
-      email: config.adminEmail,
-      name: config.adminName,
-      groupId: adminGroup.id,
-      cpf: config.adminCpf,
-      passwordHash: adminPasswordHash,
-      isActive: true,
-    },
-  });
 
   await prisma.user.upsert({
     where: { email: config.masterEmail },
@@ -146,9 +125,7 @@ async function main() {
   await seedDefaultUsers(config);
 
   console.log(
-    "Seed concluído. Admin:",
-    config.adminEmail,
-    "(trocar a senha futuramente). Master:",
+    "Seed concluído. Master:",
     config.masterEmail
   );
 }

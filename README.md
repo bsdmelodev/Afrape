@@ -17,6 +17,8 @@ Copie `.env.example` para `.env.dev` (dev) ou `.env.prod` (prod) e preencha:
 ```
 DATABASE_URL=postgresql://brunodb_owner:senhasegura@db:5432/brunodb?sslmode=disable
 AUTH_SECRET=gere_uma_string_longa_e_unica
+SEED_MASTER_EMAIL=master@email.com.br
+SEED_MASTER_PASSWORD=defina_uma_senha_forte
 # DIRECT_URL=postgresql://brunodb_owner:senhasegura@db:5432/brunodb?sslmode=disable
 ```
 
@@ -31,9 +33,7 @@ docker compose -f docker-compose.dev.yml down   # parar/remover containers dev
 docker compose -f docker-compose.dev.yml down -v --rmi all --remove-orphans # parar/remover todos containers, volumes, iamgens e containers orfãs
 ```
 Composição de dev usa bind mount do código (`.:/app`) com hot reload; alterações no projeto refletem sem rebuild.
-Admin inicial (sem acesso ao menu Configurações): `admin@escola.local` / `Admin@123456`.
-Master inicial (acesso total): `bruno@rocketup.com.br` / `123456`.
-Obs.: esses usuários são criados pelo `npm run seed` (arquivo `prisma/seed.ts`).
+Usuário inicial é criado pelo `npm run seed` usando `SEED_MASTER_*`.
 
 ## Produção (build/start via Docker)
 ```bash
@@ -67,7 +67,7 @@ Observação: garanta escrita em `public/uploads` ou adapte `/api/upload/avatar`
 ## Dados de exemplo e reset
 - `/settings` (permite `settings.write`):
   - **Popular banco**: cria escola, grupos/permissions, 2 usuários secretaria, 5 usuários/professores + professores, 5 turmas, 10 disciplinas, 30 responsáveis, 10 alunos (até 3 responsáveis cada), matrículas, turma x disciplina (2 por turma), alocações de professor, períodos, sessões/presenças, avaliações/notas, fechamentos por período.
-  - **Resetar banco**: trunca tabelas, recria permissões/grupos e o admin padrão (`admin@escola.local` / `Admin@123456`).
+  - **Resetar banco**: trunca tabelas, recria permissões/grupos e usuário base usando `SEED_MASTER_*`.
   - Ambas exibem toasts de sucesso/erro.
 
 ## Estrutura rápida
@@ -81,7 +81,7 @@ Observação: garanta escrita em `public/uploads` ou adapte `/api/upload/avatar`
 ## Permissões seedadas
 - `.read` e `.write` para: students, guardians, class_groups, subjects, enrollments, teachers, class_subjects, teacher_assignments, academic_terms, attendance, assessments, term_grades, users, groups, permissions, school, settings.
 - Monitoramento: `monitoring.read`, `monitoring.write`, `monitoring_settings.write`, `hardware_simulator.write`.
-- Grupos: Admin (tudo), Secretaria (cadastros principais), Professor (leituras + frequência/avaliações).
+- Grupos: Master (tudo), Admin (sem Configurações), Secretaria (cadastros principais), Professor (leituras + frequência/avaliações).
 
 ## Rotas úteis
 - `/login`, `/dashboard`
@@ -92,10 +92,10 @@ Observação: garanta escrita em `public/uploads` ou adapte `/api/upload/avatar`
 - `/school`, `/settings`
 
 ## Passo a passo de cadastro (recomendado)
-1. **Login** com o admin inicial e troque a senha em Perfil, se desejar.
+1. **Login** com o master inicial e troque a senha em Perfil, se desejar.
 2. **Configurações › Escola**: preencha nome, contatos e logo (opcional).
 3. **Permissões/Grupos** (se necessário): já vêm seedados; ajuste se quiser perfis customizados.
-4. **Usuários**: crie usuários e atribua grupos (Admin/Secretaria/Professor). Avatar é opcional.
+4. **Usuários**: crie usuários e atribua grupos (Master/Admin/Secretaria/Professor). Avatar é opcional.
 5. **Responsáveis**: cadastre responsáveis com CPF único e telefone; eles serão vinculados aos alunos.
 6. **Alunos**: cadastre o aluno, busque/vincule pelo CPF do responsável (pelo menos um). Matrícula interna é gerada automaticamente.
 7. **Turmas**: cadastre turmas (ano letivo, turno numérico 1/2/3/4).

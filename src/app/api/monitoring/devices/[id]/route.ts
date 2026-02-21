@@ -34,7 +34,14 @@ export async function GET(
 
   const device = await prisma.device.findUnique({
     where: { id },
-    include: {
+    select: {
+      id: true,
+      name: true,
+      type: true,
+      roomId: true,
+      isActive: true,
+      createdAt: true,
+      updatedAt: true,
       room: { select: { id: true, name: true } },
     },
   });

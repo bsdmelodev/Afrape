@@ -21,7 +21,7 @@ model UserGroup {
   name              String             @unique @db.VarChar(80)
   description       String?            @db.Text
   createdAt         DateTime           @map("created_at") @default(now()) @db.Timestamp(6)
-  updatedAt         DateTime           @map("updated_at") @default(now()) @db.Timestamp(6)
+  updatedAt         DateTime           @map("updated_at") @default(now()) @updatedAt @db.Timestamp(6)
   users             User[]
   groupPermissions  GroupPermission[]
 
@@ -40,7 +40,7 @@ model User {
   isActive       Boolean    @map("is_active") @default(true)
   lastLoginAt    DateTime?  @map("last_login_at") @db.Timestamp(6)
   createdAt      DateTime   @map("created_at") @default(now()) @db.Timestamp(6)
-  updatedAt      DateTime   @map("updated_at") @default(now()) @db.Timestamp(6)
+  updatedAt      DateTime   @map("updated_at") @default(now()) @updatedAt @db.Timestamp(6)
   group          UserGroup  @relation(fields: [groupId], references: [id], onDelete: Restrict, map: "fk_users_group")
   teacher        Teacher?
   termGrades     TermGrade[] @relation("TermGradesClosedBy")
@@ -83,7 +83,7 @@ model School {
   website   String?  @db.VarChar(200)
   logoUrl   String?  @map("logo_url") @db.VarChar(255)
   createdAt DateTime @map("created_at") @default(now()) @db.Timestamp(6)
-  updatedAt DateTime @map("updated_at") @default(now()) @db.Timestamp(6)
+  updatedAt DateTime @map("updated_at") @default(now()) @updatedAt @db.Timestamp(6)
 
   @@map("school")
 }
@@ -98,7 +98,7 @@ model Student {
   phone               String?             @db.VarChar(30)
   isActive            Boolean             @map("is_active") @default(true)
   createdAt           DateTime            @map("created_at") @default(now()) @db.Timestamp(6)
-  updatedAt           DateTime            @map("updated_at") @default(now()) @db.Timestamp(6)
+  updatedAt           DateTime            @map("updated_at") @default(now()) @updatedAt @db.Timestamp(6)
   guardians           StudentGuardian[]
   enrollments         Enrollment[]
 
@@ -112,7 +112,7 @@ model Guardian {
   email          String?             @db.VarChar(180)
   phone          String?             @db.VarChar(30)
   createdAt      DateTime            @map("created_at") @default(now()) @db.Timestamp(6)
-  updatedAt      DateTime            @map("updated_at") @default(now()) @db.Timestamp(6)
+  updatedAt      DateTime            @map("updated_at") @default(now()) @updatedAt @db.Timestamp(6)
   studentLinks   StudentGuardian[]
 
   @@map("guardians")
@@ -139,7 +139,7 @@ model Teacher {
   userId               Int                   @unique @map("user_id")
   isActive             Boolean               @map("is_active") @default(true)
   createdAt            DateTime              @map("created_at") @default(now()) @db.Timestamp(6)
-  updatedAt            DateTime              @map("updated_at") @default(now()) @db.Timestamp(6)
+  updatedAt            DateTime              @map("updated_at") @default(now()) @updatedAt @db.Timestamp(6)
   user                 User                  @relation(fields: [userId], references: [id], onDelete: Restrict, map: "fk_teachers_user")
   teacherAssignments   TeacherAssignment[]
   attendanceSessions   AttendanceSession[]   @relation("AttendanceSessionTeacher")
@@ -153,7 +153,7 @@ model Subject {
   name        String          @db.VarChar(120)
   code        String?         @unique @db.VarChar(30)
   createdAt   DateTime        @map("created_at") @default(now()) @db.Timestamp(6)
-  updatedAt   DateTime        @map("updated_at") @default(now()) @db.Timestamp(6)
+  updatedAt   DateTime        @map("updated_at") @default(now()) @updatedAt @db.Timestamp(6)
   classSubjects ClassSubject[]
 
   @@index([name], map: "ix_subjects_name")
@@ -167,7 +167,7 @@ model ClassGroup {
   shift       Int?            @db.SmallInt
   isActive    Boolean         @map("is_active") @default(true)
   createdAt   DateTime        @map("created_at") @default(now()) @db.Timestamp(6)
-  updatedAt   DateTime        @map("updated_at") @default(now()) @db.Timestamp(6)
+  updatedAt   DateTime        @map("updated_at") @default(now()) @updatedAt @db.Timestamp(6)
   classSubjects ClassSubject[]
   enrollments Enrollment[]
 
@@ -184,7 +184,7 @@ model Enrollment {
   enrolledAt    DateTime             @map("enrolled_at") @default(dbgenerated("current_date")) @db.Date
   leftAt        DateTime?            @map("left_at") @db.Date
   createdAt     DateTime             @map("created_at") @default(now()) @db.Timestamp(6)
-  updatedAt     DateTime             @map("updated_at") @default(now()) @db.Timestamp(6)
+  updatedAt     DateTime             @map("updated_at") @default(now()) @updatedAt @db.Timestamp(6)
   student       Student              @relation(fields: [studentId], references: [id], onDelete: Restrict, map: "fk_enr_student")
   classGroup    ClassGroup           @relation(fields: [classGroupId], references: [id], onDelete: Restrict, map: "fk_enr_class")
   attendance    AttendanceRecord[]
@@ -202,7 +202,7 @@ model ClassSubject {
   subjectId        Int                  @map("subject_id")
   workloadMinutes  Int?                 @map("workload_minutes")
   createdAt        DateTime             @map("created_at") @default(now()) @db.Timestamp(6)
-  updatedAt        DateTime             @map("updated_at") @default(now()) @db.Timestamp(6)
+  updatedAt        DateTime             @map("updated_at") @default(now()) @updatedAt @db.Timestamp(6)
   classGroup       ClassGroup           @relation(fields: [classGroupId], references: [id], onDelete: Cascade, map: "fk_cs_class")
   subject          Subject              @relation(fields: [subjectId], references: [id], onDelete: Restrict, map: "fk_cs_subject")
   teacherAssignments TeacherAssignment[]
@@ -224,7 +224,7 @@ model TeacherAssignment {
   startsAt       DateTime?      @map("starts_at") @db.Date
   endsAt         DateTime?      @map("ends_at") @db.Date
   createdAt      DateTime       @map("created_at") @default(now()) @db.Timestamp(6)
-  updatedAt      DateTime       @map("updated_at") @default(now()) @db.Timestamp(6)
+  updatedAt      DateTime       @map("updated_at") @default(now()) @updatedAt @db.Timestamp(6)
   classSubject   ClassSubject   @relation(fields: [classSubjectId], references: [id], onDelete: Cascade, map: "fk_ta_class_subject")
   teacher        Teacher        @relation(fields: [teacherId], references: [id], onDelete: Restrict, map: "fk_ta_teacher")
 
@@ -241,7 +241,7 @@ model AcademicTerm {
   startsAt     DateTime            @map("starts_at") @db.Date
   endsAt       DateTime            @map("ends_at") @db.Date
   createdAt    DateTime            @map("created_at") @default(now()) @db.Timestamp(6)
-  updatedAt    DateTime            @map("updated_at") @default(now()) @db.Timestamp(6)
+  updatedAt    DateTime            @map("updated_at") @default(now()) @updatedAt @db.Timestamp(6)
   attendanceSessions AttendanceSession[]
   assessments  Assessment[]
   termGrades   TermGrade[]
@@ -262,7 +262,7 @@ model AttendanceSession {
   content            String?             @db.Text
   launchedByTeacherId Int                @map("launched_by_teacher_id")
   createdAt          DateTime            @map("created_at") @default(now()) @db.Timestamp(6)
-  updatedAt          DateTime            @map("updated_at") @default(now()) @db.Timestamp(6)
+  updatedAt          DateTime            @map("updated_at") @default(now()) @updatedAt @db.Timestamp(6)
   classSubject       ClassSubject        @relation(fields: [classSubjectId], references: [id], onDelete: Cascade, map: "fk_as_class_subject")
   term               AcademicTerm?       @relation(fields: [termId], references: [id], onDelete: Restrict, map: "fk_as_term")
   teacher            Teacher             @relation("AttendanceSessionTeacher", fields: [launchedByTeacherId], references: [id], onDelete: Restrict, map: "fk_as_teacher")
@@ -280,7 +280,7 @@ model AttendanceRecord {
   minutesLate         Int?                @map("minutes_late") @db.SmallInt
   notes               String?             @db.Text
   createdAt           DateTime            @map("created_at") @default(now()) @db.Timestamp(6)
-  updatedAt           DateTime            @map("updated_at") @default(now()) @db.Timestamp(6)
+  updatedAt           DateTime            @map("updated_at") @default(now()) @updatedAt @db.Timestamp(6)
   session             AttendanceSession   @relation(fields: [attendanceSessionId], references: [id], onDelete: Cascade, map: "fk_ar_session")
   enrollment          Enrollment          @relation(fields: [enrollmentId], references: [id], onDelete: Restrict, map: "fk_ar_enrollment")
 
@@ -301,7 +301,7 @@ model Assessment {
   isPublished        Boolean             @map("is_published") @default(false)
   createdByTeacherId Int                 @map("created_by_teacher_id")
   createdAt          DateTime            @map("created_at") @default(now()) @db.Timestamp(6)
-  updatedAt          DateTime            @map("updated_at") @default(now()) @db.Timestamp(6)
+  updatedAt          DateTime            @map("updated_at") @default(now()) @updatedAt @db.Timestamp(6)
   classSubject       ClassSubject        @relation(fields: [classSubjectId], references: [id], onDelete: Cascade, map: "fk_a_class_subject")
   term               AcademicTerm        @relation(fields: [termId], references: [id], onDelete: Restrict, map: "fk_a_term")
   teacher            Teacher             @relation("AssessmentTeacher", fields: [createdByTeacherId], references: [id], onDelete: Restrict, map: "fk_a_teacher")
@@ -320,7 +320,7 @@ model AssessmentScore {
   isExcused    Boolean    @map("is_excused") @default(false)
   notes        String?    @db.Text
   createdAt    DateTime   @map("created_at") @default(now()) @db.Timestamp(6)
-  updatedAt    DateTime   @map("updated_at") @default(now()) @db.Timestamp(6)
+  updatedAt    DateTime   @map("updated_at") @default(now()) @updatedAt @db.Timestamp(6)
   assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade, map: "fk_ascore_assessment")
   enrollment   Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Restrict, map: "fk_ascore_enrollment")
 
@@ -341,7 +341,7 @@ model TermGrade {
   closedAt              DateTime?  @map("closed_at") @db.Timestamp(6)
   closedByUserId        Int?       @map("closed_by_user_id")
   createdAt             DateTime   @map("created_at") @default(now()) @db.Timestamp(6)
-  updatedAt             DateTime   @map("updated_at") @default(now()) @db.Timestamp(6)
+  updatedAt             DateTime   @map("updated_at") @default(now()) @updatedAt @db.Timestamp(6)
   enrollment            Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Restrict, map: "fk_tg_enrollment")
   classSubject          ClassSubject @relation(fields: [classSubjectId], references: [id], onDelete: Restrict, map: "fk_tg_class_subject")
   term                  AcademicTerm @relation(fields: [termId], references: [id], onDelete: Restrict, map: "fk_tg_term")
@@ -359,7 +359,7 @@ model Room {
   location          String?            @db.VarChar(180)
   isActive          Boolean            @map("is_active") @default(true)
   createdAt         DateTime           @map("created_at") @default(now()) @db.Timestamp(6)
-  updatedAt         DateTime           @map("updated_at") @default(now()) @db.Timestamp(6)
+  updatedAt         DateTime           @map("updated_at") @default(now()) @updatedAt @db.Timestamp(6)
   devices           Device[]
   telemetryReadings TelemetryReading[]
 
@@ -375,7 +375,7 @@ model Device {
   isActive          Boolean            @map("is_active") @default(true)
   token             String             @unique @db.VarChar(120)
   createdAt         DateTime           @map("created_at") @default(now()) @db.Timestamp(6)
-  updatedAt         DateTime           @map("updated_at") @default(now()) @db.Timestamp(6)
+  updatedAt         DateTime           @map("updated_at") @default(now()) @updatedAt @db.Timestamp(6)
   room              Room?              @relation(fields: [roomId], references: [id], onDelete: SetNull, map: "fk_devices_room")
   accessEvents      AccessEvent[]
   telemetryReadings TelemetryReading[]
@@ -429,7 +429,7 @@ model MonitoringSettings {
   allowOnlyActiveStudents   Boolean   @map("allow_only_active_students") @default(true)
   hardwareProfile           Json?     @map("hardware_profile") @db.JsonB
   createdAt                 DateTime  @map("created_at") @default(now()) @db.Timestamp(6)
-  updatedAt                 DateTime  @map("updated_at") @default(now()) @db.Timestamp(6)
+  updatedAt                 DateTime  @map("updated_at") @default(now()) @updatedAt @db.Timestamp(6)
 
   @@map("monitoring_settings")
 }

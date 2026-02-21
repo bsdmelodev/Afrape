@@ -30,6 +30,8 @@ COPY --from=builder /app/node_modules ./node_modules
 # Copia schema/config para executar comandos prisma/seed em runtime
 COPY prisma.config.ts ./prisma.config.ts
 COPY prisma ./prisma
+# Seed depende destes dados compartilhados.
+COPY --from=builder /app/src/lib/bootstrap-data.ts ./src/lib/bootstrap-data.ts
 
 # Copia artefatos de build
 COPY --from=builder /app/.next ./.next

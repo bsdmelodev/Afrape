@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { consumeRateLimit, getClientIp } from "@/lib/rate-limit";
 import {
   extractBearerToken,
   findActiveDeviceByToken,
@@ -38,6 +39,20 @@ export async function POST(request: Request) {
   const token = extractBearerToken(request);
   if (!token) {
     return NextResponse.json({ error: "Token do dispositivo ausente." }, { status: 401 });
+  }
+
+  const ip = getClientIp(request.headers);
+  const rateLimit = consumeRateLimit({
+    key: `iot:telemetry:token:${token}:ip:${ip}`,
+    limit: 240,
+    windowMs: 60 * 1000,
+  });
+  if (!rateLimit.allowed) {
+    const retryAfterSeconds = Math.max(1, Math.ceil(rateLimit.retryAfterMs / 1000));
+    return NextResponse.json(
+      { error: "Limite de requisições excedido.", retry_after_seconds: retryAfterSeconds },
+      { status: 429, headers: { "Retry-After": String(retryAfterSeconds) } }
+    );
   }
 
   const deviceResult = await findActiveDeviceByToken(token);

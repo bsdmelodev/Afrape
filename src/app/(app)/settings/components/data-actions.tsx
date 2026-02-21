@@ -73,7 +73,7 @@ export function DataActions() {
         const result = await resetDatabase();
         const errorMsg = (result as { error?: string })?.error;
         if (result?.success) {
-          toast.success("Banco resetado e admin recriado");
+          toast.success("Banco resetado e master recriado");
         } else {
           toast.error(errorMsg ?? "Falha ao resetar banco");
         }
@@ -109,11 +109,11 @@ export function DataActions() {
       </div>
       <div className="space-y-2 rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
         <p>
-          Precisa limpar tudo? Este botão apaga todos os dados e recria apenas o admin padrão
-          (usa as variáveis SEED_ADMIN_*). Operação destrutiva.
+          Precisa limpar tudo? Este botão apaga todos os dados e recria apenas o usuário master
+          (usa as variáveis SEED_MASTER_*). Operação destrutiva.
         </p>
         <Button type="button" variant="destructive" onClick={handleReset} disabled={isResetting}>
-          {isResetting ? "Resetando..." : "Resetar banco e recriar admin"}
+          {isResetting ? "Resetando..." : "Resetar banco e recriar master"}
         </Button>
       </div>
     </>

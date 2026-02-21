@@ -1,12 +1,35 @@
 import { NextResponse } from "next/server";
 import { promises as fs } from "fs";
-import path from "path";
 import crypto from "crypto";
-
-const MAX_SIZE = 5 * 1024 * 1024; // 5MB
-const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+import path from "path";
+import { getCurrentUser } from "@/lib/current-user";
+import { consumeRateLimit, getClientIp } from "@/lib/rate-limit";
+import {
+  deletePreviousUpload,
+  ensureUploadDir,
+  validateImageUpload,
+} from "@/lib/upload";
 
 export async function POST(request: Request) {
+  const user = await getCurrentUser();
+  if (!user) {
+    return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+  }
+
+  const ip = getClientIp(request.headers);
+  const rateLimit = consumeRateLimit({
+    key: `upload:avatar:user:${user.id}:ip:${ip}`,
+    limit: 30,
+    windowMs: 10 * 60 * 1000,
+  });
+  if (!rateLimit.allowed) {
+    const retryAfterSeconds = Math.max(1, Math.ceil(rateLimit.retryAfterMs / 1000));
+    return NextResponse.json(
+      { error: "Muitas requisições. Tente novamente em instantes." },
+      { status: 429, headers: { "Retry-After": String(retryAfterSeconds) } }
+    );
+  }
+
   const formData = await request.formData();
   const file = formData.get("file");
 
@@ -14,35 +37,23 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Arquivo não enviado" }, { status: 400 });
   }
 
-  if (!ALLOWED_TYPES.includes(file.type)) {
-    return NextResponse.json({ error: "Tipo de arquivo não suportado" }, { status: 400 });
+  let upload: Awaited<ReturnType<typeof validateImageUpload>>;
+  try {
+    upload = await validateImageUpload(file);
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Arquivo inválido ou não suportado";
+    return NextResponse.json({ error: message }, { status: 400 });
   }
 
-  if (file.size > MAX_SIZE) {
-    return NextResponse.json({ error: "Arquivo maior que 5MB" }, { status: 400 });
-  }
+  const fileName = `${crypto.randomUUID()}.${upload.extension}`;
+  const uploadDir = await ensureUploadDir();
 
-  const buffer = Buffer.from(await file.arrayBuffer());
-  const ext = file.name.split(".").pop() || "jpg";
-  const fileName = `${crypto.randomUUID()}.${ext}`;
-  const uploadDir = path.join(process.cwd(), "public", "uploads");
-
-  await fs.mkdir(uploadDir, { recursive: true });
-  await fs.writeFile(path.join(uploadDir, fileName), buffer);
+  await fs.writeFile(path.join(uploadDir, fileName), upload.buffer);
 
   const currentUrl = formData.get("currentUrl");
-  if (typeof currentUrl === "string" && currentUrl.startsWith("/uploads/")) {
-    const safeRelative = currentUrl.replace("/uploads/", "");
-    const toDelete = path.join(uploadDir, safeRelative);
-    if (toDelete.startsWith(uploadDir)) {
-      try {
-        await fs.unlink(toDelete);
-      } catch (err: any) {
-        if (err?.code !== "ENOENT") {
-          console.warn("Não foi possível remover avatar antigo:", err);
-        }
-      }
-    }
+  if (typeof currentUrl === "string") {
+    await deletePreviousUpload(currentUrl, uploadDir);
   }
 
   return NextResponse.json({ url: `/uploads/${fileName}` });

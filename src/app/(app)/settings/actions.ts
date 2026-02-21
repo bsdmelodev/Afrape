@@ -1,8 +1,10 @@
 "use server";
 
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/rbac";
 import { hashPassword } from "@/lib/auth";
+import { parsePrismaError } from "@/lib/action-utils";
 import {
   BASE_GROUP_DEFINITIONS,
   BASE_PERMISSION_DEFINITIONS,
@@ -13,6 +15,7 @@ import {
   SCHOOL_DEFAULT,
   SCHOOL_DEMO_DEFAULT,
 } from "@/lib/bootstrap-data";
+import { generateDeviceToken } from "@/lib/monitoring";
 
 const firstNames = [
   "Ana", "Bruno", "Carlos", "Daniel", "Eduardo", "Fernanda", "Gabriel", "Helena", "Igor", "Joana",
@@ -72,10 +75,12 @@ function randomPhone(seed: number) {
   return `11${base}`;
 }
 
-async function upsertPermissionsAndGroups() {
+type DbClient = Prisma.TransactionClient | typeof prisma;
+
+async function upsertPermissionsAndGroups(db: DbClient = prisma) {
   const permissions = await Promise.all(
     BASE_PERMISSION_DEFINITIONS.map(({ code, description }) =>
-      prisma.permission.upsert({
+      db.permission.upsert({
         where: { code },
         update: { description },
         create: { code, description },
@@ -87,14 +92,14 @@ async function upsertPermissionsAndGroups() {
   const groupRecords = new Map<string, number>();
 
   for (const group of BASE_GROUP_DEFINITIONS) {
-    const groupRecord = await prisma.userGroup.upsert({
+    const groupRecord = await db.userGroup.upsert({
       where: { name: group.name },
       update: { description: group.description },
       create: { name: group.name, description: group.description },
     });
 
     groupRecords.set(group.name, groupRecord.id);
-    await prisma.groupPermission.deleteMany({ where: { groupId: groupRecord.id } });
+    await db.groupPermission.deleteMany({ where: { groupId: groupRecord.id } });
 
     const groupPermissions = group.permissions
       .map((code) => permissionMap.get(code))
@@ -106,7 +111,7 @@ async function upsertPermissionsAndGroups() {
 
     if (groupPermissions.length === 0) continue;
 
-    await prisma.groupPermission.createMany({
+    await db.groupPermission.createMany({
       data: groupPermissions,
       skipDuplicates: true,
     });
@@ -115,41 +120,52 @@ async function upsertPermissionsAndGroups() {
   return { groupRecords };
 }
 
-async function upsertMonitoringDefaults() {
-  const currentSettings = await prisma.monitoringSettings.findFirst({ select: { id: true } });
+async function upsertMonitoringDefaults(db: DbClient = prisma) {
+  const currentSettings = await db.monitoringSettings.findFirst({ select: { id: true } });
   if (currentSettings) {
-    await prisma.monitoringSettings.update({
+    await db.monitoringSettings.update({
       where: { id: currentSettings.id },
       data: MONITORING_DEFAULTS,
     });
     return;
   }
-  await prisma.monitoringSettings.create({ data: MONITORING_DEFAULTS });
+  await db.monitoringSettings.create({ data: MONITORING_DEFAULTS });
 }
 
-async function upsertMonitoringDemoInfra() {
-  let sampleRoom = await prisma.room.findFirst({ where: { name: DEMO_MONITORING_ROOM.name } });
+async function upsertMonitoringDemoInfra(db: DbClient = prisma) {
+  let sampleRoom = await db.room.findFirst({ where: { name: DEMO_MONITORING_ROOM.name } });
   if (!sampleRoom) {
-    sampleRoom = await prisma.room.create({
+    sampleRoom = await db.room.create({
       data: { ...DEMO_MONITORING_ROOM, isActive: true },
     });
   }
 
   for (const device of DEMO_MONITORING_DEVICES) {
-    await prisma.device.upsert({
-      where: { token: device.token },
-      update: {
+    const existing = await db.device.findFirst({
+      where: { name: device.name, type: device.type },
+      select: { id: true },
+    });
+
+    if (existing) {
+      await db.device.update({
+        where: { id: existing.id },
+        data: {
+          name: device.name,
+          type: device.type,
+          roomId: device.roomRequired ? sampleRoom.id : null,
+          isActive: true,
+        },
+      });
+      continue;
+    }
+
+    await db.device.create({
+      data: {
         name: device.name,
         type: device.type,
         roomId: device.roomRequired ? sampleRoom.id : null,
         isActive: true,
-      },
-      create: {
-        name: device.name,
-        type: device.type,
-        roomId: device.roomRequired ? sampleRoom.id : null,
-        isActive: true,
-        token: device.token,
+        token: generateDeviceToken(),
       },
     });
   }
@@ -616,144 +632,101 @@ export async function generateSampleProfessors() {
 export async function resetDatabase() {
   await requirePermission("settings.write");
 
-  const seedConfig = getSeedIdentityConfig();
-
-  const tableExists = async (table: string) => {
-    try {
-      const res = await prisma.$queryRawUnsafe<{ exists: boolean }[]>(
-        `select exists (select 1 from information_schema.tables where table_schema = current_schema() and table_name = '${table}')`
-      );
-      return Boolean(res[0]?.exists);
-    } catch (err) {
-      console.warn(`Falha ao verificar tabela ${table}`, err);
-      return false;
-    }
-  };
-
-  const orderedTables = [
-    "access_events",
-    "telemetry_readings",
-    "devices",
-    "rooms",
-    "monitoring_settings",
-    "attendance_records",
-    "attendance_sessions",
-    "assessment_scores",
-    "assessments",
-    "term_grades",
-    "teacher_assignments",
-    "class_subjects",
-    "enrollments",
-    "student_guardians",
-    "teachers",
-    "students",
-    "guardians",
-    "class_groups",
-    "subjects",
-    "academic_terms",
-    "group_permissions",
-    "users",
-    "user_groups",
-    "permissions",
-    "school",
-  ];
-
-  for (const table of orderedTables) {
-    if (await tableExists(table)) {
-      try {
-        await prisma.$executeRawUnsafe(`TRUNCATE TABLE ${table} RESTART IDENTITY CASCADE`);
-      } catch (err) {
-        console.warn(`Falha ao limpar tabela ${table}`, err);
-      }
-    }
+  let seedConfig: ReturnType<typeof getSeedIdentityConfig>;
+  try {
+    seedConfig = getSeedIdentityConfig();
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : "Falha ao carregar variáveis de seed.",
+    };
   }
 
-  if (await tableExists("school")) {
-    try {
-      await prisma.school.create({ data: SCHOOL_DEFAULT });
-    } catch (err) {
-      console.warn("Não foi possível criar registro default em school (tabela divergente?)", err);
-    }
-  }
+  const masterHash = await hashPassword(seedConfig.masterPassword);
 
-  if (await tableExists("monitoring_settings")) {
-    try {
-      await prisma.monitoringSettings.create({
-        data: MONITORING_DEFAULTS,
-      });
-    } catch (err) {
-      console.warn("Não foi possível criar monitoramento default", err);
-    }
-  }
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`
+        TRUNCATE TABLE
+          access_events,
+          telemetry_readings,
+          devices,
+          rooms,
+          monitoring_settings,
+          attendance_records,
+          attendance_sessions,
+          assessment_scores,
+          assessments,
+          term_grades,
+          teacher_assignments,
+          class_subjects,
+          enrollments,
+          student_guardians,
+          teachers,
+          students,
+          guardians,
+          class_groups,
+          subjects,
+          academic_terms,
+          group_permissions,
+          users,
+          user_groups,
+          permissions,
+          school
+        RESTART IDENTITY CASCADE
+      `;
 
-  if (await tableExists("rooms")) {
-    try {
-      const sampleRoom = await prisma.room.create({
+      await tx.school.create({ data: SCHOOL_DEFAULT });
+      await tx.monitoringSettings.create({ data: MONITORING_DEFAULTS });
+
+      const sampleRoom = await tx.room.create({
         data: { ...DEMO_MONITORING_ROOM, isActive: true },
       });
 
-      if (await tableExists("devices")) {
-        for (const device of DEMO_MONITORING_DEVICES) {
-          await prisma.device.create({
-            data: {
-              name: device.name,
-              type: device.type,
-              roomId: device.roomRequired ? sampleRoom.id : null,
-              isActive: true,
-              token: device.token,
-            },
-          });
-        }
+      for (const device of DEMO_MONITORING_DEVICES) {
+        await tx.device.create({
+          data: {
+            name: device.name,
+            type: device.type,
+            roomId: device.roomRequired ? sampleRoom.id : null,
+            isActive: true,
+            token: generateDeviceToken(),
+          },
+        });
       }
-    } catch (err) {
-      console.warn("Não foi possível criar seed inicial de monitoramento", err);
-    }
+
+      const { groupRecords } = await upsertPermissionsAndGroups(tx);
+
+      const masterGroupId = groupRecords.get("Master");
+      if (!masterGroupId) {
+        throw new Error("Grupo base Master não foi encontrado após reset.");
+      }
+
+      await tx.user.upsert({
+        where: { email: seedConfig.masterEmail },
+        update: {
+          name: seedConfig.masterName,
+          groupId: masterGroupId,
+          passwordHash: masterHash,
+          cpf: seedConfig.masterCpf,
+          isActive: true,
+        },
+        create: {
+          email: seedConfig.masterEmail,
+          name: seedConfig.masterName,
+          groupId: masterGroupId,
+          passwordHash: masterHash,
+          cpf: seedConfig.masterCpf,
+          isActive: true,
+        },
+      });
+    });
+
+    return { success: true };
+  } catch (error) {
+    return {
+      error: parsePrismaError(error, {
+        default: "Falha ao resetar banco.",
+      }),
+    };
   }
-
-  await upsertPermissionsAndGroups();
-
-  const adminGroup = await prisma.userGroup.findUniqueOrThrow({ where: { name: "Admin" } });
-  const passwordHash = await hashPassword(seedConfig.adminPassword);
-  const masterGroup = await prisma.userGroup.findUniqueOrThrow({ where: { name: "Master" } });
-  const masterHash = await hashPassword(seedConfig.masterPassword);
-
-  await prisma.user.upsert({
-    where: { email: seedConfig.adminEmail },
-    update: {
-      name: seedConfig.adminName,
-      groupId: adminGroup.id,
-      passwordHash,
-      cpf: seedConfig.adminCpf,
-      isActive: true,
-    },
-    create: {
-      email: seedConfig.adminEmail,
-      name: seedConfig.adminName,
-      groupId: adminGroup.id,
-      passwordHash,
-      cpf: seedConfig.adminCpf,
-      isActive: true,
-    },
-  });
-
-  await prisma.user.upsert({
-    where: { email: seedConfig.masterEmail },
-    update: {
-      name: seedConfig.masterName,
-      groupId: masterGroup.id,
-      passwordHash: masterHash,
-      cpf: seedConfig.masterCpf,
-      isActive: true,
-    },
-    create: {
-      email: seedConfig.masterEmail,
-      name: seedConfig.masterName,
-      groupId: masterGroup.id,
-      passwordHash: masterHash,
-      cpf: seedConfig.masterCpf,
-      isActive: true,
-    },
-  });
-
-  return { success: true };
 }

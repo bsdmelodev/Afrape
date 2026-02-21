@@ -18,9 +18,13 @@ import { prisma } from "@/lib/prisma";
 
 async function getSchoolSafe() {
   try {
-    const exists = await prisma.$queryRawUnsafe<{ exists: boolean }[]>(
-      "select exists (select 1 from information_schema.tables where table_name = 'school')"
-    );
+    const exists = await prisma.$queryRaw<{ exists: boolean }[]>`
+      select exists (
+        select 1
+        from information_schema.tables
+        where table_name = 'school'
+      ) as exists
+    `;
     if (!exists[0]?.exists) return null;
     try {
       return await prisma.school.findFirst({ select: { name: true, logoUrl: true } });

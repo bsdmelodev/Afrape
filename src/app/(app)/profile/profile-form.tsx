@@ -18,6 +18,15 @@ import { toast } from "sonner";
 import { updateProfile, type ProfileInput } from "./actions";
 import { formatCpf } from "@/lib/utils";
 
+const avatarUrlSchema = z
+  .union([
+    z.string().url(),
+    z.string().regex(/^\/uploads\/[a-zA-Z0-9._/-]+$/, "URL do avatar inválida"),
+    z.literal(""),
+  ])
+  .optional()
+  .transform((value) => (value && value.trim() ? value.trim() : undefined));
+
 const formSchema = z.object({
   name: z.string().min(1, "Nome é obrigatório"),
   email: z.string().email("E-mail inválido"),
@@ -32,7 +41,7 @@ const formSchema = z.object({
     .optional()
     .or(z.literal(""))
     .transform((v) => (v ? v : undefined)),
-  avatarUrl: z.string().url().optional().or(z.literal("").transform(() => undefined)),
+  avatarUrl: avatarUrlSchema,
 });
 
 type FormValues = z.input<typeof formSchema>;

@@ -7,6 +7,15 @@ import { parsePrismaError, parseZodError } from "@/lib/action-utils";
 import { hashPassword } from "@/lib/auth";
 import { requireUser } from "@/lib/rbac";
 
+const avatarUrlSchema = z
+  .union([
+    z.string().url(),
+    z.string().regex(/^\/uploads\/[a-zA-Z0-9._/-]+$/, "URL do avatar inválida"),
+    z.literal(""),
+  ])
+  .optional()
+  .transform((value) => (value && value.trim() ? value.trim() : undefined));
+
 const profileSchema = z.object({
   name: z.string().min(1, "Nome é obrigatório"),
   email: z.string().email("E-mail inválido"),
@@ -21,7 +30,7 @@ const profileSchema = z.object({
     .optional()
     .or(z.literal(""))
     .transform((v) => (v ? v : undefined)),
-  avatarUrl: z.string().url().optional().or(z.literal("").transform(() => undefined)),
+  avatarUrl: avatarUrlSchema,
 });
 
 export type ProfileInput = z.infer<typeof profileSchema>;

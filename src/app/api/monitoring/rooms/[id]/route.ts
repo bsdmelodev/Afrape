@@ -34,6 +34,15 @@ export async function GET(
     where: { id },
     include: {
       devices: {
+        select: {
+          id: true,
+          name: true,
+          type: true,
+          roomId: true,
+          isActive: true,
+          createdAt: true,
+          updatedAt: true,
+        },
         orderBy: { name: "asc" },
       },
       telemetryReadings: {

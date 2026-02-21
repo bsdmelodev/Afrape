@@ -10,10 +10,6 @@ export type GroupDefinition = {
 };
 
 export type SeedIdentityConfig = {
-  adminEmail: string;
-  adminPassword: string;
-  adminName: string;
-  adminCpf: string;
   masterEmail: string;
   masterPassword: string;
   masterName: string;
@@ -169,13 +165,11 @@ export const DEMO_MONITORING_ROOM = {
 
 export const DEMO_MONITORING_DEVICES = [
   {
-    token: "dev-sala-101-token",
     name: "Sensor Sala 101",
     type: "SALA" as const,
     roomRequired: true,
   },
   {
-    token: "dev-portaria-principal-token",
     name: "Portaria Principal",
     type: "PORTARIA" as const,
     roomRequired: false,
@@ -186,15 +180,27 @@ export function normalizeCpf(rawValue: string | undefined, fallback = "000000000
   return (rawValue ?? fallback).replace(/\D/g, "").padEnd(11, "0").slice(0, 11);
 }
 
+function getRequiredEnvValue(env: EnvLike, key: string) {
+  const value = env[key]?.trim();
+  if (!value) {
+    throw new Error(`Variável obrigatória ausente: ${key}`);
+  }
+  return value;
+}
+
+function getRequiredPassword(env: EnvLike, key: string) {
+  const password = getRequiredEnvValue(env, key);
+  if (password.length < 8) {
+    throw new Error(`A senha em ${key} deve ter pelo menos 8 caracteres`);
+  }
+  return password;
+}
+
 export function getSeedIdentityConfig(env: EnvLike = process.env): SeedIdentityConfig {
   return {
-    adminEmail: env.SEED_ADMIN_EMAIL ?? "admin@escola.local",
-    adminPassword: env.SEED_ADMIN_PASSWORD ?? "Admin@123456",
-    adminName: env.SEED_ADMIN_NAME ?? "Administrador",
-    adminCpf: normalizeCpf(env.SEED_ADMIN_CPF, "00000000000"),
-    masterEmail: "bruno@rocketup.com.br",
-    masterPassword: "123456",
-    masterName: "Bruno Master",
-    masterCpf: "88888888888",
+    masterEmail: getRequiredEnvValue(env, "SEED_MASTER_EMAIL"),
+    masterPassword: getRequiredPassword(env, "SEED_MASTER_PASSWORD"),
+    masterName: env.SEED_MASTER_NAME ?? "Master",
+    masterCpf: normalizeCpf(env.SEED_MASTER_CPF, "11111111111"),
   };
 }

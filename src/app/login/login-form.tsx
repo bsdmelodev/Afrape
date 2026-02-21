@@ -62,7 +62,7 @@ export function LoginForm() {
             <FormItem>
               <FormLabel>E-mail</FormLabel>
               <FormControl>
-                <Input placeholder="admin@escola.local" type="email" {...field} />
+                <Input placeholder="master@email.com.br" type="email" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>

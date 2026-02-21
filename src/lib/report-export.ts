@@ -21,9 +21,16 @@ function escapeCsvCell(value: string) {
   return value;
 }
 
+function hardenCsvCell(value: string) {
+  if (/^[=+\-@]/.test(value) || /^[\t\r\n]/.test(value)) {
+    return `'${value}`;
+  }
+  return value;
+}
+
 export function buildCsv(headers: string[], rows: string[][]) {
   const csvRows = [headers, ...rows].map((row) =>
-    row.map((value) => escapeCsvCell(toCell(value))).join(",")
+    row.map((value) => escapeCsvCell(hardenCsvCell(toCell(value)))).join(",")
   );
   return `\uFEFF${csvRows.join("\n")}`;
 }
