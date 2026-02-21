@@ -3,6 +3,16 @@
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/rbac";
 import { hashPassword } from "@/lib/auth";
+import {
+  BASE_GROUP_DEFINITIONS,
+  BASE_PERMISSION_DEFINITIONS,
+  DEMO_MONITORING_DEVICES,
+  DEMO_MONITORING_ROOM,
+  getSeedIdentityConfig,
+  MONITORING_DEFAULTS,
+  SCHOOL_DEFAULT,
+  SCHOOL_DEMO_DEFAULT,
+} from "@/lib/bootstrap-data";
 
 const firstNames = [
   "Ana", "Bruno", "Carlos", "Daniel", "Eduardo", "Fernanda", "Gabriel", "Helena", "Igor", "Joana",
@@ -62,104 +72,88 @@ function randomPhone(seed: number) {
   return `11${base}`;
 }
 
-const permissionDefinitions = [
-  { code: "students.read", description: "Visualizar alunos" },
-  { code: "students.write", description: "Criar/editar/excluir alunos" },
-  { code: "guardians.read", description: "Visualizar responsáveis" },
-  { code: "guardians.write", description: "Criar/editar/excluir responsáveis" },
-  { code: "class_groups.read", description: "Visualizar turmas" },
-  { code: "class_groups.write", description: "Criar/editar/excluir turmas" },
-  { code: "subjects.read", description: "Visualizar disciplinas" },
-  { code: "subjects.write", description: "Criar/editar/excluir disciplinas" },
-  { code: "enrollments.read", description: "Visualizar matrículas" },
-  { code: "enrollments.write", description: "Criar/editar/excluir matrículas" },
-  { code: "teachers.read", description: "Visualizar professores" },
-  { code: "teachers.write", description: "Criar/editar/excluir professores" },
-  { code: "class_subjects.read", description: "Visualizar componentes de turma" },
-  { code: "class_subjects.write", description: "Criar/editar/excluir componentes de turma" },
-  { code: "teacher_assignments.read", description: "Visualizar alocações de professores" },
-  { code: "teacher_assignments.write", description: "Criar/editar/excluir alocações de professores" },
-  { code: "academic_terms.read", description: "Visualizar períodos acadêmicos" },
-  { code: "academic_terms.write", description: "Criar/editar/excluir períodos acadêmicos" },
-  { code: "attendance.read", description: "Visualizar frequência" },
-  { code: "attendance.write", description: "Registrar/editar frequência" },
-  { code: "assessments.read", description: "Visualizar avaliações" },
-  { code: "assessments.write", description: "Criar/editar/excluir avaliações" },
-  { code: "term_grades.read", description: "Visualizar fechamento de notas" },
-  { code: "term_grades.write", description: "Registrar/editar fechamento de notas" },
-  { code: "users.read", description: "Visualizar usuários" },
-  { code: "users.write", description: "Criar/editar/excluir usuários" },
-  { code: "groups.read", description: "Visualizar grupos" },
-  { code: "groups.write", description: "Criar/editar/excluir grupos" },
-  { code: "permissions.read", description: "Visualizar permissões" },
-  { code: "permissions.write", description: "Criar/editar/excluir permissões" },
-  { code: "school.read", description: "Visualizar dados da escola" },
-  { code: "school.write", description: "Criar/editar dados da escola" },
-  { code: "settings.read", description: "Visualizar configurações" },
-  { code: "settings.write", description: "Executar ações administrativas em configurações" },
-  {
-    code: "MONITORING_VIEW",
-    description: "Visualizar dashboards, leituras e eventos de monitoramento",
-  },
-  {
-    code: "MONITORING_MANAGE",
-    description: "Gerenciar salas, portarias e dispositivos de monitoramento",
-  },
-  {
-    code: "ADMIN_MONITORING_SETTINGS",
-    description: "Alterar configurações administrativas do monitoramento",
-  },
-  {
-    code: "ADMIN_HARDWARE_SIMULATOR",
-    description: "Acessar simulador de hardware de monitoramento",
-  },
-];
+async function upsertPermissionsAndGroups() {
+  const permissions = await Promise.all(
+    BASE_PERMISSION_DEFINITIONS.map(({ code, description }) =>
+      prisma.permission.upsert({
+        where: { code },
+        update: { description },
+        create: { code, description },
+      })
+    )
+  );
 
-const adminPermissions = permissionDefinitions
-  .map((p) => p.code)
-  .filter((code) => code !== "settings.read" && code !== "settings.write");
+  const permissionMap = new Map(permissions.map((permission) => [permission.code, permission.id]));
+  const groupRecords = new Map<string, number>();
 
-const seedGroups = [
-  {
-    name: "Master",
-    description: "Acesso total ao sistema",
-    permissions: permissionDefinitions.map((p) => p.code),
-  },
-  {
-    name: "Admin",
-    description: "Acesso completo (exceto Configurações)",
-    permissions: adminPermissions,
-  },
-  {
-    name: "Secretaria",
-    description: "Gestão acadêmica e de matrículas",
-    permissions: [
-      "students.read",
-      "students.write",
-      "guardians.read",
-      "guardians.write",
-      "class_groups.read",
-      "class_groups.write",
-      "subjects.read",
-      "subjects.write",
-      "enrollments.read",
-      "enrollments.write",
-      "term_grades.read",
-    ],
-  },
-  {
-    name: "Professor",
-    description: "Lançamento de frequência e avaliações",
-    permissions: [
-      "students.read",
-      "class_groups.read",
-      "subjects.read",
-      "attendance.write",
-      "assessments.write",
-      "term_grades.read",
-    ],
-  },
-];
+  for (const group of BASE_GROUP_DEFINITIONS) {
+    const groupRecord = await prisma.userGroup.upsert({
+      where: { name: group.name },
+      update: { description: group.description },
+      create: { name: group.name, description: group.description },
+    });
+
+    groupRecords.set(group.name, groupRecord.id);
+    await prisma.groupPermission.deleteMany({ where: { groupId: groupRecord.id } });
+
+    const groupPermissions = group.permissions
+      .map((code) => permissionMap.get(code))
+      .filter((permissionId): permissionId is number => typeof permissionId === "number")
+      .map((permissionId) => ({
+        groupId: groupRecord.id,
+        permissionId,
+      }));
+
+    if (groupPermissions.length === 0) continue;
+
+    await prisma.groupPermission.createMany({
+      data: groupPermissions,
+      skipDuplicates: true,
+    });
+  }
+
+  return { groupRecords };
+}
+
+async function upsertMonitoringDefaults() {
+  const currentSettings = await prisma.monitoringSettings.findFirst({ select: { id: true } });
+  if (currentSettings) {
+    await prisma.monitoringSettings.update({
+      where: { id: currentSettings.id },
+      data: MONITORING_DEFAULTS,
+    });
+    return;
+  }
+  await prisma.monitoringSettings.create({ data: MONITORING_DEFAULTS });
+}
+
+async function upsertMonitoringDemoInfra() {
+  let sampleRoom = await prisma.room.findFirst({ where: { name: DEMO_MONITORING_ROOM.name } });
+  if (!sampleRoom) {
+    sampleRoom = await prisma.room.create({
+      data: { ...DEMO_MONITORING_ROOM, isActive: true },
+    });
+  }
+
+  for (const device of DEMO_MONITORING_DEVICES) {
+    await prisma.device.upsert({
+      where: { token: device.token },
+      update: {
+        name: device.name,
+        type: device.type,
+        roomId: device.roomRequired ? sampleRoom.id : null,
+        isActive: true,
+      },
+      create: {
+        name: device.name,
+        type: device.type,
+        roomId: device.roomRequired ? sampleRoom.id : null,
+        isActive: true,
+        token: device.token,
+      },
+    });
+  }
+}
 
 export async function populateDemoData() {
   await requirePermission("settings.write");
@@ -168,114 +162,32 @@ export async function populateDemoData() {
   const demoHash = await hashPassword(demoPassword);
 
   // 1) Permissões e grupos
-  const permissions = await Promise.all(
-    permissionDefinitions.map(({ code, description }) =>
-      prisma.permission.upsert({
-        where: { code },
-        update: { description },
-        create: { code, description },
-      })
-    )
-  );
-  const permissionMap = new Map(permissions.map((p) => [p.code, p.id]));
-
-  const groupRecords = new Map<string, number>();
-  for (const group of seedGroups) {
-    const groupRecord = await prisma.userGroup.upsert({
-      where: { name: group.name },
-      update: { description: group.description },
-      create: { name: group.name, description: group.description },
-    });
-    groupRecords.set(group.name, groupRecord.id);
-    await prisma.groupPermission.deleteMany({ where: { groupId: groupRecord.id } });
-    for (const code of group.permissions) {
-      const pid = permissionMap.get(code);
-      if (!pid) continue;
-      await prisma.groupPermission.create({ data: { groupId: groupRecord.id, permissionId: pid } });
-    }
-  }
+  const { groupRecords } = await upsertPermissionsAndGroups();
 
   // 2) Escola
   try {
     await prisma.school.upsert({
       where: { id: 1 },
-      update: { name: "Escola Modelo", city: "São Paulo", state: "SP", phone: "1130000000" },
-      create: { name: "Escola Modelo", city: "São Paulo", state: "SP", phone: "1130000000" },
+      update: SCHOOL_DEMO_DEFAULT,
+      create: SCHOOL_DEMO_DEFAULT,
     });
   } catch (err) {
     console.warn("Tabela school indisponível para popular", err);
   }
 
   // 2.1) Monitoramento (singleton + sala/device de exemplo)
-  const monitoringDefaults = {
-    tempMin: "20.00",
-    tempMax: "28.00",
-    humMin: "40.00",
-    humMax: "70.00",
-    telemetryIntervalSeconds: 60,
-    unlockDurationSeconds: 5,
-    allowOnlyActiveStudents: true,
-  };
-  const currentSettings = await prisma.monitoringSettings.findFirst({ select: { id: true } });
-  if (currentSettings) {
-    await prisma.monitoringSettings.update({
-      where: { id: currentSettings.id },
-      data: monitoringDefaults,
-    });
-  } else {
-    await prisma.monitoringSettings.create({ data: monitoringDefaults });
-  }
-
-  let sampleRoom = await prisma.room.findFirst({ where: { name: "Sala 101" } });
-  if (!sampleRoom) {
-    sampleRoom = await prisma.room.create({
-      data: { name: "Sala 101", location: "Bloco A", isActive: true },
-    });
-  }
-
-  await prisma.device.upsert({
-    where: { token: "dev-sala-101-token" },
-    update: {
-      name: "Sensor Sala 101",
-      type: "SALA",
-      roomId: sampleRoom.id,
-      isActive: true,
-    },
-    create: {
-      name: "Sensor Sala 101",
-      type: "SALA",
-      roomId: sampleRoom.id,
-      isActive: true,
-      token: "dev-sala-101-token",
-    },
-  });
-
-  await prisma.device.upsert({
-    where: { token: "dev-portaria-principal-token" },
-    update: {
-      name: "Portaria Principal",
-      type: "PORTARIA",
-      roomId: null,
-      isActive: true,
-    },
-    create: {
-      name: "Portaria Principal",
-      type: "PORTARIA",
-      roomId: null,
-      isActive: true,
-      token: "dev-portaria-principal-token",
-    },
-  });
+  await upsertMonitoringDefaults();
+  await upsertMonitoringDemoInfra();
 
   // 3) Usuários secretaria (2) e professor (5)
   const userPayloads = [
-    { name: randomName(), email: "secretaria1@escola.local", group: "Secretaria" },
-    { name: randomName(), email: "secretaria2@escola.local", group: "Secretaria" },
-    { name: randomName(), email: "prof1@escola.local", group: "Professor" },
-    { name: randomName(), email: "prof2@escola.local", group: "Professor" },
-    { name: randomName(), email: "prof3@escola.local", group: "Professor" },
-    { name: randomName(), email: "prof4@escola.local", group: "Professor" },
-    { name: randomName(), email: "prof5@escola.local", group: "Professor" },
+    { name: randomName(), email: "secretaria1@email.com.br", group: "Secretaria" },
+    { name: randomName(), email: "secretaria2@email.com.br", group: "Secretaria" },
+    { name: randomName(), email: "prof1@email.com.br", group: "Professor" },
+    { name: randomName(), email: "prof2@email.com.br", group: "Professor" },
+    { name: randomName(), email: "prof3@email.com.br", group: "Professor" },
+    { name: randomName(), email: "prof4@email.com.br", group: "Professor" },
+    { name: randomName(), email: "prof5@email.com.br", group: "Professor" },
   ];
 
   const users = [];
@@ -670,7 +582,7 @@ export async function generateSampleProfessors() {
 
   const users = [];
   for (let i = 0; i < 5; i++) {
-    const email = `prof.auto.${base + i}@escola.local`;
+    const email = `prof.auto.${base + i}@email.com.br`;
     const name = randomName();
     const phone = randomPhone(base + 700 + i);
     const cpf = randomCpf(base + 800 + i);
@@ -704,12 +616,7 @@ export async function generateSampleProfessors() {
 export async function resetDatabase() {
   await requirePermission("settings.write");
 
-  const adminEmail = process.env.SEED_ADMIN_EMAIL ?? "admin@escola.local";
-  const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? "Admin@123456";
-  const adminName = process.env.SEED_ADMIN_NAME ?? "Administrador";
-  const masterEmail = "bruno@rocketup.com.br";
-  const masterPassword = "123456";
-  const masterName = "Bruno Master";
+  const seedConfig = getSeedIdentityConfig();
 
   const tableExists = async (table: string) => {
     try {
@@ -763,7 +670,7 @@ export async function resetDatabase() {
 
   if (await tableExists("school")) {
     try {
-      await prisma.school.create({ data: { name: "Escola Modelo" } });
+      await prisma.school.create({ data: SCHOOL_DEFAULT });
     } catch (err) {
       console.warn("Não foi possível criar registro default em school (tabela divergente?)", err);
     }
@@ -772,15 +679,7 @@ export async function resetDatabase() {
   if (await tableExists("monitoring_settings")) {
     try {
       await prisma.monitoringSettings.create({
-        data: {
-          tempMin: "20.00",
-          tempMax: "28.00",
-          humMin: "40.00",
-          humMax: "70.00",
-          telemetryIntervalSeconds: 60,
-          unlockDurationSeconds: 5,
-          allowOnlyActiveStudents: true,
-        },
+        data: MONITORING_DEFAULTS,
       });
     } catch (err) {
       console.warn("Não foi possível criar monitoramento default", err);
@@ -790,104 +689,68 @@ export async function resetDatabase() {
   if (await tableExists("rooms")) {
     try {
       const sampleRoom = await prisma.room.create({
-        data: { name: "Sala 101", location: "Bloco A", isActive: true },
+        data: { ...DEMO_MONITORING_ROOM, isActive: true },
       });
 
       if (await tableExists("devices")) {
-        await prisma.device.create({
-          data: {
-            name: "Sensor Sala 101",
-            type: "SALA",
-            roomId: sampleRoom.id,
-            isActive: true,
-            token: "dev-sala-101-token",
-          },
-        });
-        await prisma.device.create({
-          data: {
-            name: "Portaria Principal",
-            type: "PORTARIA",
-            roomId: null,
-            isActive: true,
-            token: "dev-portaria-principal-token",
-          },
-        });
+        for (const device of DEMO_MONITORING_DEVICES) {
+          await prisma.device.create({
+            data: {
+              name: device.name,
+              type: device.type,
+              roomId: device.roomRequired ? sampleRoom.id : null,
+              isActive: true,
+              token: device.token,
+            },
+          });
+        }
       }
     } catch (err) {
       console.warn("Não foi possível criar seed inicial de monitoramento", err);
     }
   }
 
-  const permissions = await Promise.all(
-    permissionDefinitions.map(({ code, description }) =>
-      prisma.permission.upsert({
-        where: { code },
-        update: { description },
-        create: { code, description },
-      })
-    )
-  );
-
-  const permissionMap = new Map(permissions.map((p) => [p.code, p.id]));
-
-  for (const group of seedGroups) {
-    const groupRecord = await prisma.userGroup.upsert({
-      where: { name: group.name },
-      update: { description: group.description },
-      create: { name: group.name, description: group.description },
-    });
-
-    await prisma.groupPermission.deleteMany({ where: { groupId: groupRecord.id } });
-
-    for (const code of group.permissions) {
-      const permissionId = permissionMap.get(code);
-      if (!permissionId) continue;
-      await prisma.groupPermission.create({
-        data: { groupId: groupRecord.id, permissionId },
-      });
-    }
-  }
+  await upsertPermissionsAndGroups();
 
   const adminGroup = await prisma.userGroup.findUniqueOrThrow({ where: { name: "Admin" } });
-  const passwordHash = await hashPassword(adminPassword);
-  const adminCpf = (process.env.SEED_ADMIN_CPF || "00000000000").replace(/\D/g, "").padEnd(11, "0");
+  const passwordHash = await hashPassword(seedConfig.adminPassword);
   const masterGroup = await prisma.userGroup.findUniqueOrThrow({ where: { name: "Master" } });
-  const masterHash = await hashPassword(masterPassword);
+  const masterHash = await hashPassword(seedConfig.masterPassword);
 
   await prisma.user.upsert({
-    where: { email: adminEmail },
+    where: { email: seedConfig.adminEmail },
     update: {
-      name: adminName,
+      name: seedConfig.adminName,
       groupId: adminGroup.id,
       passwordHash,
-      cpf: adminCpf,
+      cpf: seedConfig.adminCpf,
       isActive: true,
     },
     create: {
-      email: adminEmail,
-      name: adminName,
+      email: seedConfig.adminEmail,
+      name: seedConfig.adminName,
       groupId: adminGroup.id,
       passwordHash,
-      cpf: adminCpf,
+      cpf: seedConfig.adminCpf,
       isActive: true,
     },
   });
 
   await prisma.user.upsert({
-    where: { email: masterEmail },
+    where: { email: seedConfig.masterEmail },
     update: {
-      name: masterName,
+      name: seedConfig.masterName,
       groupId: masterGroup.id,
       passwordHash: masterHash,
-      cpf: "88888888888",
+      cpf: seedConfig.masterCpf,
       isActive: true,
     },
     create: {
-      email: masterEmail,
-      name: masterName,
+      email: seedConfig.masterEmail,
+      name: seedConfig.masterName,
       groupId: masterGroup.id,
       passwordHash: masterHash,
-      cpf: "88888888888",
+      cpf: seedConfig.masterCpf,
       isActive: true,
     },
   });

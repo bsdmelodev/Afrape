@@ -1,13 +1,14 @@
 import crypto from "crypto";
 import type { AccessResult, Device, MonitoringSettings } from "@prisma/client";
 import { z } from "zod";
+import { MONITORING_DEFAULTS, MONITORING_HARDWARE_PROFILE } from "@/lib/bootstrap-data";
 import { prisma } from "@/lib/prisma";
 
 export const MONITORING_PERMISSIONS = {
-  VIEW: "MONITORING_VIEW",
-  MANAGE: "MONITORING_MANAGE",
-  ADMIN_SETTINGS: "ADMIN_MONITORING_SETTINGS",
-  HARDWARE_SIMULATOR: "ADMIN_HARDWARE_SIMULATOR",
+  VIEW: "monitoring.read",
+  MANAGE: "monitoring.write",
+  ADMIN_SETTINGS: "monitoring_settings.write",
+  HARDWARE_SIMULATOR: "hardware_simulator.write",
 } as const;
 
 export const SENSOR_MODELS = ["SHT31", "SHT35"] as const;
@@ -76,33 +77,31 @@ const hardwareProfileSchema = z.object({
     }),
 });
 
-const DEFAULT_HARDWARE_PROFILE: MonitoringHardwareProfile = {
-  transport: "HTTP_REST",
-  esp32: {
-    connectivity: "WIFI",
-  },
-  telemetry: {
-    sensorModel: "SHT31",
-    supportedSensorModels: ["SHT31", "SHT35"],
-    i2cAddress: "0x44",
-    endpoint: "/api/iot/telemetry",
-  },
-  access: {
-    readerModel: "PN532",
-    frequencyMHz: 13.56,
-    endpoint: "/api/iot/access",
-  },
-};
+function cloneDefaultHardwareProfile(): MonitoringHardwareProfile {
+  return {
+    transport: MONITORING_HARDWARE_PROFILE.transport,
+    esp32: {
+      connectivity: MONITORING_HARDWARE_PROFILE.esp32.connectivity,
+    },
+    telemetry: {
+      sensorModel: MONITORING_HARDWARE_PROFILE.telemetry.sensorModel,
+      supportedSensorModels: [...MONITORING_HARDWARE_PROFILE.telemetry.supportedSensorModels],
+      i2cAddress: MONITORING_HARDWARE_PROFILE.telemetry.i2cAddress,
+      endpoint: MONITORING_HARDWARE_PROFILE.telemetry.endpoint,
+    },
+    access: {
+      readerModel: MONITORING_HARDWARE_PROFILE.access.readerModel,
+      frequencyMHz: MONITORING_HARDWARE_PROFILE.access.frequencyMHz,
+      endpoint: MONITORING_HARDWARE_PROFILE.access.endpoint,
+    },
+  };
+}
+
+const DEFAULT_HARDWARE_PROFILE: MonitoringHardwareProfile = cloneDefaultHardwareProfile();
 
 const DEFAULT_MONITORING_SETTINGS = {
-  tempMin: "20.00",
-  tempMax: "28.00",
-  humMin: "40.00",
-  humMax: "70.00",
-  telemetryIntervalSeconds: 60,
-  unlockDurationSeconds: 5,
-  allowOnlyActiveStudents: true,
-  hardwareProfile: DEFAULT_HARDWARE_PROFILE,
+  ...MONITORING_DEFAULTS,
+  hardwareProfile: cloneDefaultHardwareProfile(),
 } as const;
 
 function toNumber(value: unknown) {

@@ -22,16 +22,18 @@ AUTH_SECRET=gere_uma_string_longa_e_unica
 
 ## Setup rápido (dev com Docker)
 ```bash
-docker compose -f docker-compose.dev.yml build --no-cache app
-docker compose -f docker-compose.dev.yml up -d
+docker compose -f docker-compose.dev.yml up -d --build
 docker compose -f docker-compose.dev.yml exec app npx prisma db execute --file prisma/sql/init.sql
 docker compose -f docker-compose.dev.yml exec app npx prisma generate
 docker compose -f docker-compose.dev.yml exec app npm run seed
 docker compose -f docker-compose.dev.yml logs -f app
 docker compose -f docker-compose.dev.yml down   # parar/remover containers dev
+docker compose -f docker-compose.dev.yml down -v --rmi all --remove-orphans # parar/remover todos containers, volumes, iamgens e containers orfãs
 ```
+Composição de dev usa bind mount do código (`.:/app`) com hot reload; alterações no projeto refletem sem rebuild.
 Admin inicial (sem acesso ao menu Configurações): `admin@escola.local` / `Admin@123456`.
 Master inicial (acesso total): `bruno@rocketup.com.br` / `123456`.
+Obs.: esses usuários são criados pelo `npm run seed` (arquivo `prisma/seed.ts`).
 
 ## Produção (build/start via Docker)
 ```bash
@@ -42,6 +44,7 @@ docker compose -f docker-compose.prod.yml exec app npx prisma generate
 docker compose -f docker-compose.prod.yml exec app npm run seed
 docker compose -f docker-compose.prod.yml logs -f app
 docker compose -f docker-compose.prod.yml down   # parar/remover containers prod
+docker compose -f docker-compose.prod.yml down -v --rmi all --remove-orphans # parar/remover todos containers, volumes, iamgens e containers orfãs
 ```
 
 Observação: garanta escrita em `public/uploads` ou adapte `/api/upload/avatar` e `/api/upload/logo`. Prisma Studio é opcional e típico de dev (porta 5555).
@@ -68,15 +71,16 @@ Observação: garanta escrita em `public/uploads` ou adapte `/api/upload/avatar`
   - Ambas exibem toasts de sucesso/erro.
 
 ## Estrutura rápida
-- `prisma/sql/init.sql` — Script canônico do banco (NÃO alterar; inclui `school`).
-- `prisma/schema.prisma` — Modelos mapeando o SQL (sem migrations).
-- `prisma/seed.ts` — Permissões, grupos e usuário admin.
+- `prisma/sql/init.sql` — Script canônico de estrutura do banco (DDL, sem dados iniciais).
+- `prisma/schema.prisma` — Modelos mapeando o SQL.
+- `prisma/seed.ts` — Dados iniciais idempotentes (permissões, grupos, usuários, escola e defaults de monitoramento).
 - `src/lib/` — `env`, `prisma`, `auth`, `session`, `current-user`, `rbac`, `formatters`, `action-utils`.
 - `src/app/` — App Router (login, (app) protegido, CRUDs, uploads, settings).
 - `src/components/` — shadcn/ui (button, card, form, table, dialog, dropdown, select, textarea, badge, separator, sheet, toast, popover, switch, avatar etc).
 
 ## Permissões seedadas
 - `.read` e `.write` para: students, guardians, class_groups, subjects, enrollments, teachers, class_subjects, teacher_assignments, academic_terms, attendance, assessments, term_grades, users, groups, permissions, school, settings.
+- Monitoramento: `monitoring.read`, `monitoring.write`, `monitoring_settings.write`, `hardware_simulator.write`.
 - Grupos: Admin (tudo), Secretaria (cadastros principais), Professor (leituras + frequência/avaliações).
 
 ## Rotas úteis

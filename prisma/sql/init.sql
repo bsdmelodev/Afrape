@@ -1,9 +1,11 @@
 -- =========================================================
--- Script inicial - Gestão Escolar
--- Módulos: Usuários/Grupos/Permissões, Alunos/Responsáveis, Professores,
---          Estrutura (Turmas/Disciplinas), Matrículas, Notas e Frequência (por aula)
+-- Gestão Escolar - Estrutura do Banco (DDL)
 -- Banco: PostgreSQL
 -- IDs: INT autoincrement (IDENTITY)
+-- =========================================================
+-- Importante:
+-- 1) Este arquivo cria apenas estrutura (sem dados iniciais).
+-- 2) Após executar o init.sql, rode `npm run seed`.
 -- =========================================================
 
 -- =========================
@@ -86,7 +88,8 @@ create sequence if not exists student_registration_seq;
 
 create table students (
   id int generated always as identity primary key,
-  registration_number varchar(30) not null unique default lpad(nextval('student_registration_seq')::text, 8, '0'), -- matrícula interna gerada
+  registration_number varchar(30) not null unique default
+    lpad(nextval('student_registration_seq')::text, 8, '0'), -- matrícula interna gerada
   name varchar(150) not null,
   birth_date date,
   cpf varchar(11) not null unique, -- obrigatório; somente dígitos
@@ -558,171 +561,9 @@ create table monitoring_settings (
     check (telemetry_interval_seconds > 0 and unlock_duration_seconds > 0)
 );
 
--- =========================
--- SEEDS PADRÃO (permissões, grupos, vínculos, admin e escola modelo)
--- =========================
-insert into permissions (code, description) values
-  ('students.read', 'Visualizar alunos'),
-  ('students.write', 'Criar/editar/excluir alunos'),
-  ('guardians.read', 'Visualizar responsáveis'),
-  ('guardians.write', 'Criar/editar/excluir responsáveis'),
-  ('class_groups.read', 'Visualizar turmas'),
-  ('class_groups.write', 'Criar/editar/excluir turmas'),
-  ('subjects.read', 'Visualizar disciplinas'),
-  ('subjects.write', 'Criar/editar/excluir disciplinas'),
-  ('enrollments.read', 'Visualizar matrículas'),
-  ('enrollments.write', 'Criar/editar/excluir matrículas'),
-  ('teachers.read', 'Visualizar professores'),
-  ('teachers.write', 'Criar/editar/excluir professores'),
-  ('class_subjects.read', 'Visualizar componentes de turma'),
-  ('class_subjects.write', 'Criar/editar/excluir componentes de turma'),
-  ('teacher_assignments.read', 'Visualizar alocações de professores'),
-  ('teacher_assignments.write', 'Criar/editar/excluir alocações de professores'),
-  ('academic_terms.read', 'Visualizar períodos acadêmicos'),
-  ('academic_terms.write', 'Criar/editar/excluir períodos acadêmicos'),
-  ('attendance.read', 'Visualizar frequência'),
-  ('attendance.write', 'Registrar/editar frequência'),
-  ('assessments.read', 'Visualizar avaliações'),
-  ('assessments.write', 'Criar/editar/excluir avaliações'),
-  ('term_grades.read', 'Visualizar fechamento de notas'),
-  ('term_grades.write', 'Registrar/editar fechamento de notas'),
-  ('users.read', 'Visualizar usuários'),
-  ('users.write', 'Criar/editar/excluir usuários'),
-  ('groups.read', 'Visualizar grupos'),
-  ('groups.write', 'Criar/editar/excluir grupos'),
-  ('permissions.read', 'Visualizar permissões'),
-  ('permissions.write', 'Criar/editar/excluir permissões'),
-  ('school.read', 'Visualizar dados da escola'),
-  ('school.write', 'Criar/editar dados da escola'),
-  ('settings.read', 'Visualizar configurações'),
-  ('settings.write', 'Executar ações administrativas em configurações'),
-  ('MONITORING_VIEW', 'Visualizar dashboards, leituras e eventos de monitoramento'),
-  ('MONITORING_MANAGE', 'Gerenciar salas, portarias e dispositivos de monitoramento'),
-  ('ADMIN_MONITORING_SETTINGS', 'Alterar configurações administrativas do monitoramento'),
-  ('ADMIN_HARDWARE_SIMULATOR', 'Acessar simulador de hardware de monitoramento')
-on conflict (code) do update set description = excluded.description;
-
-insert into user_groups (name, description) values
-  ('Master', 'Acesso total ao sistema'),
-  ('Admin', 'Acesso completo ao sistema'),
-  ('Secretaria', 'Gestão acadêmica e de matrículas'),
-  ('Professor', 'Lançamento de frequência e avaliações')
-on conflict (name) do update set description = excluded.description;
-
--- Master recebe todas as permissões
-insert into group_permissions (group_id, permission_id)
-select g.id, p.id
-from user_groups g
-cross join permissions p
-where g.name = 'Master'
-on conflict do nothing;
-
--- Admin recebe todas as permissões exceto Configurações
-insert into group_permissions (group_id, permission_id)
-select g.id, p.id
-from user_groups g
-join permissions p on p.code not in ('settings.read', 'settings.write')
-where g.name = 'Admin'
-on conflict do nothing;
-
--- Secretaria
-with perms as (
-  select id from permissions where code in (
-    'students.read','students.write','guardians.read','guardians.write',
-    'class_groups.read','class_groups.write','subjects.read','subjects.write',
-    'enrollments.read','enrollments.write','term_grades.read'
-  )
-), grp as (select id from user_groups where name = 'Secretaria')
-insert into group_permissions (group_id, permission_id)
-select grp.id, perms.id from grp cross join perms
-on conflict do nothing;
-
--- Professor
-with perms as (
-  select id from permissions where code in (
-    'students.read','class_groups.read','subjects.read',
-    'attendance.write','assessments.write','term_grades.read'
-  )
-), grp as (select id from user_groups where name = 'Professor')
-insert into group_permissions (group_id, permission_id)
-select grp.id, perms.id from grp cross join perms
-on conflict do nothing;
-
--- Admin padrão
-with grp as (select id from user_groups where name = 'Admin')
-insert into users (group_id, name, email, password_hash, is_active, cpf)
-select grp.id, 'Administrador', 'admin@escola.local', '$2b$10$WKfjgQbkHq4KaKJkvsrYx.0IkIx2FFd8KIpECk4AiNiY3C3Vo4SS2', true, '00000000000'
-from grp
-where not exists (select 1 from users where email = 'admin@escola.local');
-
--- Master padrão
-with grp as (select id from user_groups where name = 'Master')
-insert into users (group_id, name, email, password_hash, is_active, cpf)
-select grp.id, 'Bruno Master', 'bruno@rocketup.com.br', '$2b$10$cwZEAq72l9leA7yffb4BaOssDnyyytWaFTQeQ3pST/kp8QAOsQiWi', true, '88888888888'
-from grp
-where not exists (select 1 from users where email = 'bruno@rocketup.com.br');
-
--- Escola modelo (opcional)
-insert into school (name)
-select 'Escola Modelo'
-where not exists (select 1 from school);
-
-insert into monitoring_settings (
-  temp_min,
-  temp_max,
-  hum_min,
-  hum_max,
-  telemetry_interval_seconds,
-  unlock_duration_seconds,
-  allow_only_active_students,
-  hardware_profile
-)
-select
-  20,
-  28,
-  40,
-  70,
-  60,
-  5,
-  true,
-  jsonb_build_object(
-    'transport', 'HTTP_REST',
-    'esp32', jsonb_build_object('connectivity', 'WIFI'),
-    'telemetry', jsonb_build_object(
-      'sensorModel', 'SHT31',
-      'supportedSensorModels', jsonb_build_array('SHT31', 'SHT35'),
-      'i2cAddress', '0x44',
-      'endpoint', '/api/iot/telemetry'
-    ),
-    'access', jsonb_build_object(
-      'readerModel', 'PN532',
-      'frequencyMHz', 13.56,
-      'endpoint', '/api/iot/access'
-    )
-  )
-where not exists (select 1 from monitoring_settings);
-
-with room_seed as (
-  insert into rooms (name, location, is_active)
-  select 'Sala 101', 'Bloco A', true
-  where not exists (select 1 from rooms where name = 'Sala 101')
-  returning id
-), room_resolved as (
-  select id from room_seed
-  union all
-  select id from rooms where name = 'Sala 101'
-  limit 1
-)
-insert into devices (name, type, room_id, is_active, token)
-select
-  'Sensor Sala 101',
-  'SALA'::"DeviceType",
-  room_resolved.id,
-  true,
-  'dev-sala-101-token'
-from room_resolved
-where not exists (select 1 from devices where token = 'dev-sala-101-token');
-
-insert into devices (name, type, room_id, is_active, token)
-select 'Portaria Principal', 'PORTARIA'::"DeviceType", null, true, 'dev-portaria-principal-token'
-where not exists (select 1 from devices where token = 'dev-portaria-principal-token');
+-- =========================================================
+-- Pós-execução
+-- =========================================================
+-- Para popular dados iniciais idempotentes (permissões, grupos, usuários,
+-- escola e defaults de monitoramento), rode:
+-- `npm run seed`

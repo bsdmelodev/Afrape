@@ -3,9 +3,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.prod
-      args:
-        DATABASE_URL: ${DATABASE_URL:-postgresql://brunodb_owner:senhasegura@db:5432/brunodb?sslmode=disable}
-        AUTH_SECRET: ${AUTH_SECRET:-changemechangemechangemechangeme}
     ports:
       - "3000:3000"
     env_file: .env.prod

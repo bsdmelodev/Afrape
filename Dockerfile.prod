@@ -10,22 +10,22 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NODE_ENV=production
-ARG DATABASE_URL="postgresql://user:pass@localhost:5432/db?schema=public"
-ARG AUTH_SECRET="changemechangemechangeme"
-ENV DATABASE_URL=${DATABASE_URL}
-ENV AUTH_SECRET=${AUTH_SECRET}
-RUN npx prisma generate
-RUN npm run build
+# Valores apenas para satisfazer validações durante o build.
+RUN DATABASE_URL="postgresql://user:pass@localhost:5432/db?schema=public" \
+    AUTH_SECRET="build-time-secret-placeholder" \
+    npx prisma generate
+RUN DATABASE_URL="postgresql://user:pass@localhost:5432/db?schema=public" \
+    AUTH_SECRET="build-time-secret-placeholder" \
+    npm run build
 
 FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
-ARG AUTH_SECRET="changemechangemechangeme"
-ENV AUTH_SECRET=${AUTH_SECRET}
 
 # Dependências já instaladas (mantém dev para permitir prisma/seed no contêiner)
 COPY package.json package-lock.json ./
-COPY --from=deps /app/node_modules ./node_modules
+# Precisa vir do builder para incluir o @prisma/client já gerado.
+COPY --from=builder /app/node_modules ./node_modules
 
 # Copia schema/config para executar comandos prisma/seed em runtime
 COPY prisma.config.ts ./prisma.config.ts

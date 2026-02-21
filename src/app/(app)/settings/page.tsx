@@ -3,16 +3,16 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ShieldCheck, UserCircle2 } from "lucide-react";
 import Link from "next/link";
-import { requirePermission } from "@/lib/rbac";
+import { hasPermission, requirePermission } from "@/lib/rbac";
 import { DataActions } from "./components/data-actions";
 
 export default async function SettingsPage() {
   const user = await requirePermission("settings.read");
 
   const permissions = user.permissions ?? [];
-  const canWrite = permissions.includes("settings.write");
-  const canMonitoringSettings = permissions.includes("ADMIN_MONITORING_SETTINGS");
-  const canSimulator = permissions.includes("ADMIN_HARDWARE_SIMULATOR");
+  const canWrite = hasPermission(user, "settings.write");
+  const canMonitoringSettings = hasPermission(user, "monitoring_settings.write");
+  const canSimulator = hasPermission(user, "hardware_simulator.write");
 
   return (
     <div className="space-y-6">
