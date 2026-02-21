@@ -169,8 +169,8 @@ export default async function AppLayout({
   return (
     <div className="min-h-screen bg-muted/30">
       <div className="flex min-h-screen">
-        <aside className="hidden w-64 border-r bg-background/80 backdrop-blur lg:block">
-          <div className="flex h-full flex-col">
+        <aside className="hidden w-64 border-r bg-background/80 backdrop-blur lg:sticky lg:top-0 lg:block lg:h-screen">
+          <div className="flex h-full min-h-0 flex-col">
             <div className="p-6">
               <Link href="/dashboard" className="flex items-center gap-3 font-semibold leading-tight">
                 {school?.logoUrl ? (
@@ -189,7 +189,7 @@ export default async function AppLayout({
                 </div>
               </Link>
             </div>
-            <div className="flex-1 p-6 pt-0">
+            <div className="sidebar-scrollbar min-h-0 flex-1 overflow-y-auto p-6 pt-0">
               <NavLinks sections={allowedSections} />
             </div>
           </div>
@@ -212,15 +212,15 @@ export default async function AppLayout({
                   <Menu className="h-5 w-5" />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="left" className="w-72 p-0">
+              <SheetContent side="left" className="h-full w-72 p-0">
                 <SheetTitle className="sr-only">Menu principal</SheetTitle>
-                <div className="flex h-full flex-col">
+                <div className="flex h-full min-h-0 flex-col">
                   <div className="p-6 pb-4">
                     <p className="text-sm text-muted-foreground">Gestão Escolar</p>
                     <p className="text-lg font-semibold">Menu</p>
                   </div>
                   <Separator />
-                  <div className="flex-1 px-6 py-4">
+                  <div className="sidebar-scrollbar min-h-0 flex-1 overflow-y-auto px-6 py-4">
                     <NavLinks sections={allowedSections} closeOnNavigate />
                   </div>
                 </div>
