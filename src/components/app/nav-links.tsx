@@ -105,7 +105,10 @@ export function NavLinks({ sections, onNavigate, closeOnNavigate }: NavLinksProp
     Object.fromEntries(
       sections.map((s) => [
         s.title,
-        s.title === "Geral" || s.title.toLowerCase().includes("acadêmico"),
+        s.title === "Geral" ||
+          s.title.toLowerCase().includes("acadêmico") ||
+          s.title.toLowerCase().includes("relatórios") ||
+          s.title.toLowerCase().includes("relatorios"),
       ])
     )
   );

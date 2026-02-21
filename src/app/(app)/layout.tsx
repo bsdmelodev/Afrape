@@ -69,6 +69,17 @@ const navSections: { title: string; items: NavEntry[] }[] = [
     ],
   },
   {
+    title: "Relatórios",
+    items: [
+      { label: "Alunos", href: "/reports/students", icon: "students", permission: "students.read" },
+      { label: "Responsáveis", href: "/reports/guardians", icon: "guardians", permission: "guardians.read" },
+      { label: "Turmas", href: "/reports/class-groups", icon: "class_groups", permission: "class_groups.read" },
+      { label: "Disciplinas", href: "/reports/subjects", icon: "subjects", permission: "subjects.read" },
+      { label: "Matrículas", href: "/reports/enrollments", icon: "enrollments", permission: "enrollments.read" },
+      { label: "Professores", href: "/reports/teachers", icon: "teachers", permission: "teachers.read" },
+    ],
+  },
+  {
     title: "Monitoramento",
     items: [
       {
