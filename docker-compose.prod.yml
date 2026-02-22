@@ -10,10 +10,7 @@ services:
       - db
   db:
     image: postgres:16
-    environment:
-      POSTGRES_DB: brunodb
-      POSTGRES_USER: brunodb_owner
-      POSTGRES_PASSWORD: senhasegura
+    env_file: .env.prod
     volumes:
       - pgdata_prod:/var/lib/postgresql/data
 volumes:

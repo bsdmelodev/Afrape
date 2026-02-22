@@ -15,12 +15,19 @@ Painel administrativo completo com Tailwind/shadcn, Prisma (PostgreSQL em Docker
 ## Variáveis de ambiente
 Copie `.env.example` para `.env.dev` (dev) ou `.env.prod` (prod) e preencha:
 ```
-DATABASE_URL=postgresql://brunodb_owner:senhasegura@db:5432/brunodb?sslmode=disable
 AUTH_SECRET=gere_uma_string_longa_e_unica
+POSTGRES_DB=brunodb
+POSTGRES_USER=brunodb_owner
+POSTGRES_PASSWORD=senhasegura
+POSTGRES_HOST=db # opcional
+POSTGRES_PORT=5432 # opcional
+POSTGRES_SSLMODE=disable # opcional
 SEED_MASTER_EMAIL=master@email.com.br
 SEED_MASTER_PASSWORD=defina_uma_senha_forte
 # DIRECT_URL=postgresql://brunodb_owner:senhasegura@db:5432/brunodb?sslmode=disable
 ```
+`docker-compose.dev.yml` lê `.env.dev` e `docker-compose.prod.yml` lê `.env.prod` para `app` e `db`.
+App/Prisma/seed montam a URL de conexão automaticamente com `POSTGRES_*`.
 
 ## Setup rápido (dev com Docker)
 ```bash

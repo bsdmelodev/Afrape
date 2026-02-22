@@ -11,7 +11,7 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 const pool =
-  globalForPrisma.pool ?? new Pool({ connectionString: env.DATABASE_URL });
+  globalForPrisma.pool ?? new Pool({ connectionString: env.dbConnectionUrl });
 
 if (process.env.NODE_ENV !== "production") {
   globalForPrisma.pool = pool;

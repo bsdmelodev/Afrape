@@ -11,13 +11,10 @@ import {
   type SeedIdentityConfig,
   SCHOOL_DEFAULT,
 } from "../src/lib/bootstrap-data";
+import { resolveDatabaseUrl } from "../src/lib/database-url";
 
 const { Pool } = pg;
-const connectionString = process.env.DATABASE_URL;
-
-if (!connectionString) {
-  throw new Error("DATABASE_URL é obrigatório para rodar o seed");
-}
+const connectionString = resolveDatabaseUrl(process.env);
 
 const pool = new Pool({ connectionString });
 const adapter = new PrismaPg(pool);

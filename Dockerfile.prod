@@ -11,10 +11,20 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NODE_ENV=production
 # Valores apenas para satisfazer validações durante o build.
-RUN DATABASE_URL="postgresql://user:pass@localhost:5432/db?schema=public" \
+RUN POSTGRES_DB="build_db" \
+    POSTGRES_USER="build_user" \
+    POSTGRES_PASSWORD="build_pass" \
+    POSTGRES_HOST="localhost" \
+    POSTGRES_PORT="5432" \
+    POSTGRES_SSLMODE="disable" \
     AUTH_SECRET="build-time-secret-placeholder" \
     npx prisma generate
-RUN DATABASE_URL="postgresql://user:pass@localhost:5432/db?schema=public" \
+RUN POSTGRES_DB="build_db" \
+    POSTGRES_USER="build_user" \
+    POSTGRES_PASSWORD="build_pass" \
+    POSTGRES_HOST="localhost" \
+    POSTGRES_PORT="5432" \
+    POSTGRES_SSLMODE="disable" \
     AUTH_SECRET="build-time-secret-placeholder" \
     npm run build
 
@@ -32,6 +42,7 @@ COPY prisma.config.ts ./prisma.config.ts
 COPY prisma ./prisma
 # Seed depende destes dados compartilhados.
 COPY --from=builder /app/src/lib/bootstrap-data.ts ./src/lib/bootstrap-data.ts
+COPY --from=builder /app/src/lib/database-url.ts ./src/lib/database-url.ts
 
 # Copia artefatos de build
 COPY --from=builder /app/.next ./.next
