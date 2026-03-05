@@ -1,4 +1,4 @@
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { SignJWT, jwtVerify } from "jose";
 import { env } from "./env";
 
@@ -8,10 +8,29 @@ const secret = new TextEncoder().encode(env.AUTH_SECRET);
 const cookieConfig = {
   httpOnly: true,
   sameSite: "lax" as const,
-  secure: process.env.NODE_ENV === "production",
   path: "/",
   maxAge: 60 * 60 * 24 * 7, // 7 dias
 };
+
+function parseSecureCookieOverride() {
+  const raw = process.env.AUTH_COOKIE_SECURE?.trim().toLowerCase();
+  if (raw === "true") return true;
+  if (raw === "false") return false;
+  return null;
+}
+
+async function shouldUseSecureCookie() {
+  if (process.env.NODE_ENV !== "production") return false;
+
+  const secureOverride = parseSecureCookieOverride();
+  if (secureOverride !== null) return secureOverride;
+
+  const requestHeaders = await headers();
+  const forwardedProto = requestHeaders.get("x-forwarded-proto");
+  if (!forwardedProto) return false;
+
+  return forwardedProto.split(",")[0]?.trim().toLowerCase() === "https";
+}
 
 export async function createSessionCookie(userId: number) {
   const token = await new SignJWT({ userId })
@@ -20,8 +39,9 @@ export async function createSessionCookie(userId: number) {
     .setExpirationTime("7d")
     .sign(secret);
 
+  const secure = await shouldUseSecureCookie();
   const store = cookies();
-  (await store).set(SESSION_COOKIE, token, cookieConfig);
+  (await store).set(SESSION_COOKIE, token, { ...cookieConfig, secure });
 }
 
 export async function readSessionUserId() {
@@ -40,7 +60,6 @@ export async function readSessionUserId() {
     return null;
   } catch (err) {
     console.error("Erro ao validar sessão", err);
-    clearSessionCookie();
     return null;
   }
 }

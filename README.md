@@ -16,6 +16,7 @@ Painel administrativo completo com Tailwind/shadcn, Prisma (PostgreSQL em Docker
 Copie `.env.example` para `.env.dev` (dev) ou `.env.prod` (prod) e preencha:
 ```
 AUTH_SECRET=gere_uma_string_longa_e_unica
+# AUTH_COOKIE_SECURE=auto # opcional: auto (padrão), true, false
 POSTGRES_DB=brunodb
 POSTGRES_USER=brunodb_owner
 POSTGRES_PASSWORD=senhasegura
@@ -162,4 +163,6 @@ Observação: garanta escrita em `public/uploads` ou adapte `/api/upload/avatar`
 ## Observações
 - Prisma Client apenas no servidor.
 - Não commitar `.env.dev`/`.env.prod`.
-- Cookies: `session` httpOnly, sameSite=lax (secure em produção).
+- Cookies: `session` httpOnly, sameSite=lax.
+- Em produção, o `secure` é detectado por `x-forwarded-proto`; sem proxy HTTPS ele cai para `secure=false`.
+- Para forçar comportamento, use `AUTH_COOKIE_SECURE=true` ou `AUTH_COOKIE_SECURE=false`.
